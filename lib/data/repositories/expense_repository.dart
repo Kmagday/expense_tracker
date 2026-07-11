@@ -53,6 +53,8 @@ class ExpenseRepository {
     id: a.id, name: a.name, type: a.type,
     balance: a.balance, icon: a.icon, color: a.color,
     isActive: a.isActive,
+    principal: a.principal, interestRate: a.interestRate,
+    minPayment: a.minPayment, dueDate: a.dueDate,
   );
 
   List<String> _tags(dynamic e) {
@@ -106,30 +108,40 @@ class ExpenseRepository {
     return a != null ? _accFromDb(a) : null;
   }
 
-  Future<AccountModel> addAccount(String name, String type, {String icon = 'account_balance', int color = 0xFF1E88E5, double balance = 0}) async {
+  Future<AccountModel> addAccount(String name, String type, {String icon = 'account_balance', int color = 0xFF1E88E5, double balance = 0, double? principal, double? interestRate, double? minPayment, DateTime? dueDate}) async {
     final now = DateTime.now();
+    debugPrint('[ExpenseRepo] addAccount - name: $name, type: $type, balance: $balance, principal: $principal');
     final id = await _db.into(_db.accountsTable).insert(AccountsTableCompanion.insert(
       name: name, type: type,
       balance: Value(balance),
       icon: Value(icon), color: Value(color),
+      principal: Value(principal), interestRate: Value(interestRate),
+      minPayment: Value(minPayment), dueDate: Value(dueDate),
       createdAt: now, updatedAt: now,
     ));
     return _accFromDb(await (_db.select(_db.accountsTable)..where((t) => t.id.equals(id))).getSingle());
   }
 
-  Future<void> updateAccount(int id, {String? name, String? type, String? icon, int? color}) async {
+  Future<void> updateAccount(int id, {String? name, String? type, String? icon, int? color, double? balance, double? principal, double? interestRate, double? minPayment, DateTime? dueDate}) async {
+    debugPrint('[ExpenseRepo] updateAccount id=$id - name: $name, type: $type, balance: $balance');
     await (_db.update(_db.accountsTable)..where((t) => t.id.equals(id))).write(
       AccountsTableCompanion(
         name: name != null ? Value(name) : const Value.absent(),
         type: type != null ? Value(type) : const Value.absent(),
         icon: icon != null ? Value(icon) : const Value.absent(),
         color: color != null ? Value(color) : const Value.absent(),
+        balance: balance != null ? Value(balance) : const Value.absent(),
+        principal: principal != null ? Value(principal) : const Value.absent(),
+        interestRate: interestRate != null ? Value(interestRate) : const Value.absent(),
+        minPayment: minPayment != null ? Value(minPayment) : const Value.absent(),
+        dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
         updatedAt: Value(DateTime.now()),
       ),
     );
   }
 
   Future<void> deleteAccount(int id) async {
+    debugPrint('[ExpenseRepo] deleteAccount id=$id');
     await (_db.update(_db.accountsTable)..where((t) => t.id.equals(id))).write(
       AccountsTableCompanion(isActive: const Value(false), updatedAt: Value(DateTime.now())),
     );
@@ -140,6 +152,7 @@ class ExpenseRepository {
   Future<TransferModel> addTransfer({required int fromAccountId, required int toAccountId, required double amount, DateTime? date, String? note}) async {
     final now = DateTime.now();
     final d = date ?? now;
+    debugPrint('[ExpenseRepo] addTransfer - from: $fromAccountId, to: $toAccountId, amount: $amount, date: $d');
     final id = await _db.into(_db.transfersTable).insert(TransfersTableCompanion.insert(
       fromAccountId: fromAccountId, toAccountId: toAccountId,
       amount: amount, date: d,
@@ -260,6 +273,7 @@ class ExpenseRepository {
   }
 
   Future<ExpenseModel> addExpense({required double amount, required int categoryId, required DateTime date, String? note, int? accountId, String? paymentMethod, String? receiptPath, bool isRecurring = false, String? recurringFrequency, List<String> tags = const []}) async {
+    debugPrint('[ExpenseRepo] addExpense - amount: $amount, categoryId: $categoryId, accountId: $accountId, date: $date');
     final now = DateTime.now();
     final id = await _db.into(_db.expensesTable).insert(ExpensesTableCompanion.insert(
       amount: amount, categoryId: categoryId, date: date,
@@ -276,12 +290,34 @@ class ExpenseRepository {
   }
 
   Future<void> updateExpense(int id, {double? amount, int? categoryId, DateTime? date, String? note, int? accountId, String? paymentMethod, String? receiptPath, List<String>? tags}) async {
+    debugPrint('[ExpenseRepo] updateExpense id=$id - amount: $amount, categoryId: $categoryId, accountId: $accountId');
+    final existing = await (_db.select(_db.expensesTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null) { debugPrint('[ExpenseRepo] updateExpense id=$id: not found'); return; }
+    final oldAmount = existing.amount;
+    final newAmount = amount ?? oldAmount;
+    final oldAccountId = existing.accountId;
+    final newAccountId = accountId;
+    if (oldAccountId == newAccountId) {
+      if (oldAmount != newAmount && oldAccountId != null) {
+        await _db.updateAccountBalance(oldAccountId, oldAmount - newAmount);
+      }
+    } else {
+      if (oldAccountId != null) await _db.updateAccountBalance(oldAccountId, oldAmount);
+      if (newAccountId != null) await _db.updateAccountBalance(newAccountId, -newAmount);
+    }
+    if (categoryId != null && categoryId != existing.categoryId) {
+      await _db.updateBudgetSpending(existing.date.month, existing.date.year, existing.categoryId, -existing.amount);
+      await _db.updateBudgetSpending(date?.month ?? existing.date.month, date?.year ?? existing.date.year, categoryId, newAmount);
+    } else if (amount != null && amount != existing.amount) {
+      await _db.updateBudgetSpending(existing.date.month, existing.date.year, existing.categoryId, -existing.amount);
+      await _db.updateBudgetSpending(date?.month ?? existing.date.month, date?.year ?? existing.date.year, existing.categoryId, newAmount);
+    }
     await (_db.update(_db.expensesTable)..where((t) => t.id.equals(id))).write(
       ExpensesTableCompanion(
         amount: amount != null ? Value(amount) : const Value.absent(),
         categoryId: categoryId != null ? Value(categoryId) : const Value.absent(),
         date: date != null ? Value(date) : const Value.absent(),
-        accountId: accountId != null ? Value<int?>(accountId) : const Value.absent(),
+        accountId: accountId != null ? Value<int?>(accountId) : Value(accountId),
         note: note != null ? Value<String?>(note) : const Value.absent(),
         paymentMethod: paymentMethod != null ? Value<String?>(paymentMethod) : const Value.absent(),
         receiptPath: receiptPath != null ? Value<String?>(receiptPath) : const Value.absent(),
@@ -292,24 +328,29 @@ class ExpenseRepository {
   }
 
   Future<void> deleteExpense(int id) async {
+    debugPrint('[ExpenseRepo] deleteExpense id=$id');
     final existing = await (_db.select(_db.expensesTable)..where((t) => t.id.equals(id))).getSingleOrNull();
     if (existing != null) {
       await _db.updateBudgetSpending(existing.date.month, existing.date.year, existing.categoryId, -existing.amount);
-      if (existing.accountId != null) await _db.updateAccountBalance(existing.accountId!, -existing.amount);
+      if (existing.accountId != null) await _db.updateAccountBalance(existing.accountId!, existing.amount);
     }
     await _db.softDeleteExpense(id);
   }
 
   Future<void> restoreExpense(int id) async {
+    debugPrint('[ExpenseRepo] restoreExpense id=$id');
     final existing = await (_db.select(_db.expensesTable)..where((t) => t.id.equals(id))).getSingleOrNull();
     if (existing != null) {
       await _db.restoreExpense(id);
       await _db.updateBudgetSpending(existing.date.month, existing.date.year, existing.categoryId, existing.amount);
-      if (existing.accountId != null) await _db.updateAccountBalance(existing.accountId!, existing.amount);
+      if (existing.accountId != null) await _db.updateAccountBalance(existing.accountId!, -existing.amount);
     }
   }
 
-  Future<void> hardDeleteExpense(int id) async => _db.hardDeleteExpense(id);
+  Future<void> hardDeleteExpense(int id) async {
+    debugPrint('[ExpenseRepo] hardDeleteExpense id=$id');
+    return _db.hardDeleteExpense(id);
+  }
   Future<List<ExpenseModel>> getDeletedExpenses() async {
     final rows = await _db.getDeletedExpenses();
     final result = <ExpenseModel>[];
@@ -333,6 +374,7 @@ class ExpenseRepository {
   }
 
   Future<IncomeModel> addIncome({required double amount, required int categoryId, String? source, required DateTime date, String? note, int? accountId, List<String> tags = const []}) async {
+    debugPrint('[ExpenseRepo] addIncome - amount: $amount, categoryId: $categoryId, accountId: $accountId, date: $date');
     final now = DateTime.now();
     final id = await _db.into(_db.incomesTable).insert(IncomesTableCompanion.insert(
       amount: amount, categoryId: categoryId, date: date,
@@ -346,6 +388,21 @@ class ExpenseRepository {
   }
 
   Future<void> updateIncome(int id, {double? amount, int? categoryId, String? source, DateTime? date, String? note, int? accountId, List<String>? tags}) async {
+    debugPrint('[ExpenseRepo] updateIncome id=$id - amount: $amount, categoryId: $categoryId, accountId: $accountId');
+    final existing = await (_db.select(_db.incomesTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null) { debugPrint('[ExpenseRepo] updateIncome id=$id: not found'); return; }
+    final oldAmount = existing.amount;
+    final newAmount = amount ?? oldAmount;
+    final oldAccountId = existing.accountId;
+    final newAccountId = accountId;
+    if (oldAccountId == newAccountId) {
+      if (oldAmount != newAmount && oldAccountId != null) {
+        await _db.updateAccountBalance(oldAccountId, newAmount - oldAmount);
+      }
+    } else {
+      if (oldAccountId != null) await _db.updateAccountBalance(oldAccountId, -oldAmount);
+      if (newAccountId != null) await _db.updateAccountBalance(newAccountId, newAmount);
+    }
     await (_db.update(_db.incomesTable)..where((t) => t.id.equals(id))).write(
       IncomesTableCompanion(
         amount: amount != null ? Value(amount) : const Value.absent(),
@@ -353,16 +410,33 @@ class ExpenseRepository {
         source: source != null ? Value<String?>(source) : const Value.absent(),
         date: date != null ? Value(date) : const Value.absent(),
         note: note != null ? Value<String?>(note) : const Value.absent(),
-        accountId: accountId != null ? Value<int?>(accountId) : const Value.absent(),
+        accountId: accountId != null ? Value<int?>(accountId) : Value(accountId),
         tags: tags != null ? Value<String?>(tags.isNotEmpty ? tags.join(',') : null) : const Value.absent(),
         updatedAt: Value(DateTime.now()),
       ),
     );
   }
 
-  Future<void> deleteIncome(int id) async => _db.softDeleteIncome(id);
-  Future<void> restoreIncome(int id) async => _db.restoreIncome(id);
-  Future<void> hardDeleteIncome(int id) async => _db.hardDeleteIncome(id);
+  Future<void> deleteIncome(int id) async {
+    debugPrint('[ExpenseRepo] deleteIncome id=$id');
+    final existing = await (_db.select(_db.incomesTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing != null) {
+      if (existing.accountId != null) await _db.updateAccountBalance(existing.accountId!, -existing.amount);
+    }
+    await _db.softDeleteIncome(id);
+  }
+  Future<void> restoreIncome(int id) async {
+    debugPrint('[ExpenseRepo] restoreIncome id=$id');
+    final existing = await (_db.select(_db.incomesTable)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing != null) {
+      await _db.restoreIncome(id);
+      if (existing.accountId != null) await _db.updateAccountBalance(existing.accountId!, existing.amount);
+    }
+  }
+  Future<void> hardDeleteIncome(int id) async {
+    debugPrint('[ExpenseRepo] hardDeleteIncome id=$id');
+    return _db.hardDeleteIncome(id);
+  }
 
   Future<List<IncomeModel>> getDeletedIncomes() async {
     final rows = await _db.getDeletedIncomes();
@@ -434,7 +508,8 @@ class ExpenseRepository {
 
   // ── Dashboard ──
 
-  Future<DashboardSummary> getDashboardSummary() async {
+  Future<({DashboardSummary summary, List<ExpenseModel> allExpenses})> getDashboardSummary() async {
+    debugPrint('[ExpenseRepo] getDashboardSummary');
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final weekStart = todayStart.subtract(Duration(days: todayStart.weekday - 1));
@@ -470,18 +545,22 @@ class ExpenseRepository {
       topAmount = top.value;
     }
 
-    return DashboardSummary(
-      totalToday: totalToday,
-      totalThisWeek: totalThisWeek,
-      totalThisMonth: totalThisMonth,
-      totalIncomeThisMonth: totalIncomeThisMonth,
-      remainingBudget: remainingBudget,
-      topCategory: topCategory ?? '',
-      topCategoryAmount: topAmount,
+    return (
+      summary: DashboardSummary(
+        totalToday: totalToday,
+        totalThisWeek: totalThisWeek,
+        totalThisMonth: totalThisMonth,
+        totalIncomeThisMonth: totalIncomeThisMonth,
+        remainingBudget: remainingBudget,
+        topCategory: topCategory ?? '',
+        topCategoryAmount: topAmount,
+      ),
+      allExpenses: allExpenses,
     );
   }
 
   Future<void> clearAllData() async {
+    debugPrint('[ExpenseRepo] clearAllData');
     await _db.delete(_db.expensesTable).go();
     await _db.delete(_db.incomesTable).go();
     await _db.delete(_db.budgetsTable).go();
@@ -495,6 +574,7 @@ class ExpenseRepository {
   // ── Savings Goals ──
 
   Future<List<SavingsGoal>> getGoals() async {
+    debugPrint('[ExpenseRepo] getGoals');
     final rows = await (_db.select(_db.savingsGoalsTable)
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
     ).get();

@@ -40,11 +40,13 @@ class _TrashScreenState extends State<TrashScreen>
   }
 
   Future<void> _loadDeleted() async {
+    debugPrint('[Trash] loading deleted items');
     setState(() => _loading = true);
     try {
       final repo = RepositoryProvider.of<ExpenseRepository>(context);
       final exps = await repo.getDeletedExpenses();
       final incs = await repo.getDeletedIncomes();
+      debugPrint('[Trash] loaded ${exps.length} deleted expenses, ${incs.length} deleted incomes');
       if (!mounted) return;
       setState(() {
         _expenses = exps;
@@ -52,6 +54,7 @@ class _TrashScreenState extends State<TrashScreen>
         _loading = false;
       });
     } catch (e) {
+      debugPrint('[Trash] failed to load deleted items: $e');
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -69,6 +72,7 @@ class _TrashScreenState extends State<TrashScreen>
   }
 
   Future<void> _restoreExpense(ExpenseModel e) async {
+    debugPrint('[Trash] restoring expense id=${e.id}, amount: ${e.amount}');
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
     await repo.restoreExpense(e.id);
     _refreshBlocs();
@@ -81,6 +85,7 @@ class _TrashScreenState extends State<TrashScreen>
   }
 
   Future<void> _restoreIncome(IncomeModel i) async {
+    debugPrint('[Trash] restoring income id=${i.id}, amount: ${i.amount}');
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
     await repo.restoreIncome(i.id);
     _refreshBlocs();
@@ -112,6 +117,7 @@ class _TrashScreenState extends State<TrashScreen>
   Future<void> _hardDeleteExpense(ExpenseModel e) async {
     final confirmed = await _confirmDelete(context, '${e.category?.name ?? 'Expense'} — ${context.read<CurrencyCubit>().state.symbol}${e.amount.toStringAsFixed(2)}');
     if (!confirmed || !mounted) return;
+    debugPrint('[Trash] hard-deleting expense id=${e.id}');
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
     await repo.hardDeleteExpense(e.id);
     _refreshBlocs();
@@ -126,6 +132,7 @@ class _TrashScreenState extends State<TrashScreen>
   Future<void> _hardDeleteIncome(IncomeModel i) async {
     final confirmed = await _confirmDelete(context, '${i.category?.name ?? 'Income'} — ${context.read<CurrencyCubit>().state.symbol}${i.amount.toStringAsFixed(2)}');
     if (!confirmed || !mounted) return;
+    debugPrint('[Trash] hard-deleting income id=${i.id}');
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
     await repo.hardDeleteIncome(i.id);
     _refreshBlocs();
@@ -138,6 +145,7 @@ class _TrashScreenState extends State<TrashScreen>
   }
 
   Future<void> _purgeAll() async {
+    debugPrint('[Trash] purge all requested');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (d) => AlertDialog(
@@ -155,6 +163,7 @@ class _TrashScreenState extends State<TrashScreen>
     if (confirmed != true || !mounted) return;
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
     final count = await repo.purgeOldDeleted();
+    debugPrint('[Trash] purged $count items');
     _refreshBlocs();
     _loadDeleted();
     if (mounted) {

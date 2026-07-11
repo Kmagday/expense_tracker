@@ -159,9 +159,11 @@ class AccountTypes {
   static const String savings = 'Savings';
   static const String cash = 'Cash';
   static const String creditCard = 'Credit Card';
+  static const String loan = 'Loan';
+  static const String personLoan = 'Personal Loan';
   static const String investment = 'Investment';
 
-  static const List<String> all = [checking, savings, cash, creditCard, investment];
+  static const List<String> all = [checking, savings, cash, creditCard, loan, personLoan, investment];
 }
 
 // ── Account Icons ──

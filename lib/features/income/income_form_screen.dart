@@ -59,6 +59,13 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
     final accounts = state.accounts;
     final symbol = context.watch<CurrencyCubit>().state.symbol;
 
+    final effectiveCategoryId = _categoryId != null && categories.any((c) => c.id == _categoryId)
+        ? _categoryId
+        : null;
+    final effectiveAccountId = _accountId != null && accounts.any((a) => a.id == _accountId)
+        ? _accountId
+        : null;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? PageTitles.editIncome : PageTitles.addIncome),
@@ -83,7 +90,7 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
-              value: _categoryId,
+              value: effectiveCategoryId,
               decoration: const InputDecoration(labelText: 'Category'),
               items: categories.map((c) => DropdownMenuItem(
                 value: c.id,
@@ -100,7 +107,7 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
-              value: _accountId,
+              value: effectiveAccountId,
               decoration: const InputDecoration(labelText: UiLabels.accountOptional),
               items: [
                 const DropdownMenuItem(value: null, child: Text('None')),
@@ -174,8 +181,9 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+    final amount = double.parse(_amountCtl.text);
+    debugPrint('[IncomeForm] ${_isEditing ? "updating" : "saving"} income - amount: $amount, categoryId: $_categoryId, accountId: $_accountId, date: $_date');
     try {
-      final amount = double.parse(_amountCtl.text);
       if (_isEditing) {
         context.read<IncomeBloc>().add(UpdateIncomeEvent(
           id: widget.income!.id,
@@ -198,6 +206,10 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
           tags: _parseTags(),
         ));
       }
+      final incomeBloc = context.read<IncomeBloc>();
+      await incomeBloc.stream.firstWhere((s) => s.isLoading);
+      await incomeBloc.stream.firstWhere((s) => !s.isLoading);
+      if (!mounted) return;
       context.read<DashboardBloc>().add(LoadDashboard());
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -227,9 +239,14 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed == true && mounted) {
+        debugPrint('[IncomeForm] deleting income id=${widget.income!.id}');
         context.read<IncomeBloc>().add(DeleteIncomeEvent(widget.income!.id));
+        final incomeBloc = context.read<IncomeBloc>();
+        await incomeBloc.stream.firstWhere((s) => s.isLoading);
+        await incomeBloc.stream.firstWhere((s) => !s.isLoading);
+        if (!mounted) return;
         context.read<DashboardBloc>().add(LoadDashboard());
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(AppMessages.incomeDeleted)),

@@ -52,13 +52,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     debugPrint('[DashboardBloc] loading dashboard');
     emit(state.copyWith(isLoading: true));
     try {
-      final summary = await _repo.getDashboardSummary();
-      final allExpenses = await _repo.getExpenses();
+      final result = await _repo.getDashboardSummary();
       final accts = await _repo.getAccounts();
-      debugPrint('[DashboardBloc] loaded - today: \$${summary.totalToday}, month: \$${summary.totalThisMonth}, ${allExpenses.length} expenses, ${accts.length} accounts');
+      debugPrint('[DashboardBloc] loaded - today: \$${result.summary.totalToday}, month: \$${result.summary.totalThisMonth}, ${result.allExpenses.length} expenses, ${accts.length} accounts');
       emit(state.copyWith(
-        summary: summary,
-        recentExpenses: allExpenses.take(5).toList(),
+        summary: result.summary,
+        recentExpenses: result.allExpenses.take(5).toList(),
         accounts: accts,
         isLoading: false,
       ));

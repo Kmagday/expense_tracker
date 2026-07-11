@@ -69,6 +69,13 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     final accounts = state.accounts;
     final symbol = context.watch<CurrencyCubit>().state.symbol;
 
+    final effectiveCategoryId = _categoryId != null && categories.any((c) => c.id == _categoryId)
+        ? _categoryId
+        : null;
+    final effectiveAccountId = _accountId != null && accounts.any((a) => a.id == _accountId)
+        ? _accountId
+        : null;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? PageTitles.editExpense : PageTitles.addExpense),
@@ -93,7 +100,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
-              value: _categoryId,
+              value: effectiveCategoryId,
               decoration: const InputDecoration(labelText: 'Category'),
               items: categories.map((c) => DropdownMenuItem(
                 value: c.id,
@@ -108,7 +115,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
-              value: _accountId,
+              value: effectiveAccountId,
               decoration: const InputDecoration(labelText: UiLabels.accountOptional),
               items: [
                 const DropdownMenuItem(value: null, child: Text('None')),
@@ -275,8 +282,10 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     setState(() => _isSaving = true);
     try {
       final ocr = ReceiptOcrService();
+      debugPrint('[ExpenseForm] scanning receipt: ${file.path}');
       final result = await ocr.processImage(file.path);
       ocr.dispose();
+      debugPrint('[ExpenseForm] OCR result - amount: ${result.amount}, date: ${result.date}, merchant: ${result.merchant}');
 
       if (mounted) {
         setState(() {
@@ -311,8 +320,9 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+    final amount = double.parse(_amountCtl.text);
+    debugPrint('[ExpenseForm] ${_isEditing ? "updating" : "saving"} expense - amount: $amount, categoryId: $_categoryId, accountId: $_accountId, date: $_date');
     try {
-      final amount = double.parse(_amountCtl.text);
       if (_isEditing) {
         context.read<ExpenseBloc>().add(UpdateExpenseEvent(
           id: widget.expense!.id,
@@ -339,6 +349,10 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           tags: _parseTags(),
         ));
       }
+      final expenseBloc = context.read<ExpenseBloc>();
+      await expenseBloc.stream.firstWhere((s) => s.isLoading);
+      await expenseBloc.stream.firstWhere((s) => !s.isLoading);
+      if (!mounted) return;
       context.read<DashboardBloc>().add(LoadDashboard());
       context.read<BudgetBloc>().add(LoadBudgets());
       context.read<AIBloc>().add(LoadAIInsights());
@@ -370,9 +384,14 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed == true && mounted) {
+        debugPrint('[ExpenseForm] deleting expense id=${widget.expense!.id}');
         context.read<ExpenseBloc>().add(DeleteExpenseEvent(widget.expense!.id));
+        final expenseBloc = context.read<ExpenseBloc>();
+        await expenseBloc.stream.firstWhere((s) => s.isLoading);
+        await expenseBloc.stream.firstWhere((s) => !s.isLoading);
+        if (!mounted) return;
         context.read<DashboardBloc>().add(LoadDashboard());
         context.read<BudgetBloc>().add(LoadBudgets());
         context.read<AIBloc>().add(LoadAIInsights());

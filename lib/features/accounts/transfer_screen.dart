@@ -134,8 +134,9 @@ class _TransferScreenState extends State<TransferScreen> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+    final amount = double.parse(_amountCtl.text);
+    debugPrint('[Transfer] transferring $amount from account $_fromAccountId to $_toAccountId');
     try {
-      final amount = double.parse(_amountCtl.text);
       final repo = RepositoryProvider.of<ExpenseRepository>(context);
       await repo.addTransfer(
         fromAccountId: _fromAccountId!,
@@ -144,6 +145,7 @@ class _TransferScreenState extends State<TransferScreen> {
         date: _date,
         note: _noteCtl.text.isEmpty ? null : _noteCtl.text,
       );
+      debugPrint('[Transfer] transfer successful');
       if (context.mounted) {
         context.read<DashboardBloc>().add(LoadDashboard());
         ScaffoldMessenger.of(context).showSnackBar(
@@ -152,6 +154,7 @@ class _TransferScreenState extends State<TransferScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      debugPrint('[Transfer] transfer failed: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Transfer failed: $e'), backgroundColor: Colors.red),

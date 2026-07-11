@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../../data/models/expense_models.dart';
 import '../../data/repositories/expense_repository.dart';
 import 'expense_query_engine.dart';
@@ -11,7 +12,10 @@ class AIInsightsService {
     int daysInMonth, {
     List<ExpenseModel>? allExpenses,
   }) {
-    if (monthExpenses.isEmpty) return 0;
+    if (monthExpenses.isEmpty) {
+      debugPrint('[AIInsights] forecast: no expenses this month');
+      return 0;
+    }
 
     final recurring = monthExpenses.where((e) => e.isRecurring).toList();
     final discretionary = monthExpenses.where((e) => !e.isRecurring).toList();
@@ -59,6 +63,7 @@ class AIInsightsService {
       total += spentSoFar;
     }
 
+    debugPrint('[AIInsights] forecast result: $total (recurring: ${recurring.length}, discretionary: ${discretionary.length})');
     return total;
   }
 
@@ -111,6 +116,7 @@ class AIInsightsService {
       }
     }
 
+    debugPrint('[AIInsights] subscriptions: found ${subscriptions.length} from ${allExpenses.length} expenses');
     return subscriptions;
   }
 
@@ -134,6 +140,7 @@ class AIInsightsService {
         }
       }
     }
+    debugPrint('[AIInsights] anomalies: found ${anomalies.length} from ${expenses.length} expenses');
     return anomalies;
   }
 
@@ -189,6 +196,7 @@ class AIInsightsService {
 
   /// Generate personalized saving suggestions.
   List<String> generateSuggestions(List<ExpenseModel> expenses) {
+    debugPrint('[AIInsights] generateSuggestions from ${expenses.length} expenses');
     final suggestions = <String>[];
     if (expenses.length < 5) {
       suggestions.add('Add more expenses to receive personalized suggestions.');
@@ -322,6 +330,7 @@ class AIInsightsService {
     required int daysInMonth,
     required Map<int, double> categoryReductions,
   }) {
+    debugPrint('[AIInsights] simulateWhatIf: ${categoryReductions.length} category reductions');
     final currentForecast = forecastEndOfMonth(monthExpenses, daysInMonth);
     final byCategory = _groupBy(monthExpenses, (e) => e.categoryId);
     double totalReduction = 0;
@@ -339,5 +348,6 @@ class AIInsightsService {
       'reduction': totalReduction,
       'difference': currentForecast - adjustedForecast,
     };
+    debugPrint('[AIInsights] simulateWhatIf result - current: $currentForecast, adjusted: $adjustedForecast, reduction: $totalReduction');
   }
 }

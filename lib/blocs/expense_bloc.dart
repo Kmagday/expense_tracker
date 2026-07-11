@@ -130,6 +130,7 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
   }
 
   Future<void> _onAdd(AddExpenseEvent event, Emitter<ExpenseState> emit) async {
+    debugPrint('[ExpenseBloc] adding expense - amount: ${event.amount}, categoryId: ${event.categoryId}, accountId: ${event.accountId}');
     emit(state.copyWith(isLoading: true));
     await _repo.addExpense(
       amount: event.amount,
@@ -145,11 +146,13 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     );
     emit(state.copyWith(
       expenses: await _repo.getExpenses(),
+      accounts: await _repo.getAccounts(),
       isLoading: false,
     ));
   }
 
   Future<void> _onUpdate(UpdateExpenseEvent event, Emitter<ExpenseState> emit) async {
+    debugPrint('[ExpenseBloc] updating expense id=${event.id}, amount: ${event.amount}, categoryId: ${event.categoryId}, accountId: ${event.accountId}');
     emit(state.copyWith(isLoading: true));
     await _repo.updateExpense(
       event.id,
@@ -164,15 +167,18 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     );
     emit(state.copyWith(
       expenses: await _repo.getExpenses(),
+      accounts: await _repo.getAccounts(),
       isLoading: false,
     ));
   }
 
   Future<void> _onDelete(DeleteExpenseEvent event, Emitter<ExpenseState> emit) async {
+    debugPrint('[ExpenseBloc] deleting expense id=${event.id}');
     emit(state.copyWith(isLoading: true));
     await _repo.deleteExpense(event.id);
     emit(state.copyWith(
       expenses: await _repo.getExpenses(),
+      accounts: await _repo.getAccounts(),
       isLoading: false,
     ));
   }

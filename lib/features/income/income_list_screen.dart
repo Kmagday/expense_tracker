@@ -38,6 +38,7 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
   }
 
   List<IncomeModel> _applyFilters(List<IncomeModel> incomes) {
+    debugPrint('[IncomeList] applying filters - search: "$_searchText", categoryId: $_filterCategoryId, dateRange: $_filterDateRange, min: $_filterMinAmount, max: $_filterMaxAmount, tag: $_filterTag');
     var filtered = incomes;
     if (_searchText.isNotEmpty) {
       final q = _searchText.toLowerCase();
@@ -399,9 +400,11 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
   }
 
   void _addIncome(BuildContext context) {
+    debugPrint('[IncomeList] opening add form');
     Navigator.push<bool>(context, MaterialPageRoute(
       builder: (_) => const IncomeFormScreen(),
     )).then((changed) {
+      debugPrint('[IncomeList] add form returned: changed=$changed');
       if (changed == true && context.mounted) {
         context.read<IncomeBloc>().add(LoadIncomes());
         context.read<DashboardBloc>().add(LoadDashboard());
@@ -410,9 +413,11 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
   }
 
   void _openEdit(BuildContext context, IncomeModel income) {
+    debugPrint('[IncomeList] opening edit for income id=${income.id}, amount: ${income.amount}');
     Navigator.push<bool>(context, MaterialPageRoute(
       builder: (_) => IncomeFormScreen(income: income),
     )).then((changed) {
+      debugPrint('[IncomeList] edit returned: changed=$changed');
       if (changed == true && context.mounted) {
         context.read<IncomeBloc>().add(LoadIncomes());
         context.read<DashboardBloc>().add(LoadDashboard());

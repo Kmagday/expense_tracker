@@ -48,6 +48,10 @@ class AccountModel {
   final String icon;
   final int color;
   final bool isActive;
+  final double? principal;
+  final double? interestRate;
+  final double? minPayment;
+  final DateTime? dueDate;
 
   const AccountModel({
     required this.id,
@@ -57,7 +61,22 @@ class AccountModel {
     required this.icon,
     required this.color,
     required this.isActive,
+    this.principal,
+    this.interestRate,
+    this.minPayment,
+    this.dueDate,
   });
+
+  bool get isDebt =>
+      type == 'Credit Card' ||
+      type == 'Loan' ||
+      type == 'Personal Loan';
+
+  double? get progress {
+    if (!isDebt || principal == null || principal! <= 0) return null;
+    final paid = principal! - balance.abs();
+    return (paid / principal!).clamp(0.0, 1.0);
+  }
 }
 
 class ExpenseModel {
