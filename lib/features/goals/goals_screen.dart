@@ -247,45 +247,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         icon: const Icon(Icons.add),
                         label: const Text('Add Goal'),
                       ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: _updateProgress,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Update Progress from This Month'),
-                      ),
                     ],
                   ),
                 ),
     );
   }
 
-  Future<void> _updateProgress() async {
-    final repo = RepositoryProvider.of<ExpenseRepository>(context);
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd = DateTime(now.year, now.month + 1, 0);
-    final incomes = await repo.getIncomes(from: monthStart, to: monthEnd);
-    final expenses = await repo.getExpenses(from: monthStart, to: monthEnd);
-    final totalIncome = incomes.fold(0.0, (s, e) => s + e.amount);
-    final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
-    final surplus = totalIncome - totalExpense;
-    debugPrint('[Goals] updating progress - incomes: $totalIncome, expenses: $totalExpense, surplus: $surplus');
-
-    for (final g in _goals) {
-      final newSaved = (g.savedAmount + surplus).clamp(0.0, g.targetAmount).toDouble();
-      final updated = SavingsGoal(
-        id: g.id, targetAmount: g.targetAmount, targetDate: g.targetDate,
-        description: g.description, savedAmount: newSaved, createdAt: g.createdAt,
-      );
-      await repo.saveGoal(updated);
-    }
-    await _load();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ErrorMessages.goalProgress(surplus))),
-      );
-    }
-  }
 }
 
 class _GoalFormScreen extends StatefulWidget {
