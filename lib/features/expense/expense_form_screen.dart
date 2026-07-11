@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/expense_models.dart';
+import '../../data/repositories/expense_repository.dart';
 import '../../blocs/expense_bloc.dart';
 import '../../blocs/dashboard_bloc.dart';
 import '../../blocs/budget_bloc.dart';
@@ -116,18 +117,15 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
               value: effectiveAccountId,
-              decoration: const InputDecoration(labelText: UiLabels.accountOptional),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('None')),
-                ...accounts.map((a) => DropdownMenuItem(
-                  value: a.id,
-                  child: Row(children: [
-                    Icon(iconFromString(a.icon), size: 20, color: Color(a.color)),
-                    const SizedBox(width: 8),
-                    Text('${a.name} ($symbol${a.balance.toStringAsFixed(0)})'),
-                  ]),
-                )),
-              ],
+              decoration: const InputDecoration(labelText: UiLabels.account),
+              items: accounts.map((a) => DropdownMenuItem(
+                value: a.id,
+                child: Row(children: [
+                  Icon(iconFromString(a.icon), size: 20, color: Color(a.color)),
+                  const SizedBox(width: 8),
+                  Text('${a.name} ($symbol${a.balance.toStringAsFixed(0)})'),
+                ]),
+              )).toList(),
               onChanged: (v) => setState(() => _accountId = v),
             ),
             const SizedBox(height: 16),
@@ -319,6 +317,30 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
 
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_accountId == null) {
+      if (_isEditing) {
+        setState(() => _isSaving = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please select an account'), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+      final repo = RepositoryProvider.of<ExpenseRepository>(context);
+      final accounts = await repo.getAccounts();
+      if (accounts.isNotEmpty) {
+        _accountId = accounts.first.id;
+      } else {
+        setState(() => _isSaving = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No accounts available. Add one in Settings.'), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+    }
     setState(() => _isSaving = true);
     final amount = double.parse(_amountCtl.text);
     debugPrint('[ExpenseForm] ${_isEditing ? "updating" : "saving"} expense - amount: $amount, categoryId: $_categoryId, accountId: $_accountId, date: $_date');

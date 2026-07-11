@@ -509,6 +509,7 @@ class UiLabels {
   static const String selectCategory = 'Select category';
   static const String noAccount = 'None';
   static const String accountOptional = 'Account (optional)';
+  static const String account = 'Account';
   static const String paymentMethodOptional = 'Payment Method (optional)';
   static const String noteOptional = 'Note (optional)';
   static const String sourceOptional = 'Source (optional)';
