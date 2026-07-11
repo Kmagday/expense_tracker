@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../../data/models/expense_models.dart';
@@ -14,47 +15,62 @@ class ExpenseQueryEngine {
 
   Future<String> answer(String query, ExpenseRepository repo) async {
     final q = query.toLowerCase().trim();
+    debugPrint('[QueryEngine] answering: "$query"');
 
     if (_isAsking('forecast', q) || _isAsking('project', q)) {
+      debugPrint('[QueryEngine] matched: forecast');
       return _answerForecast(repo);
     }
     if (_isAsking('anomal', q) || _isAsking('unusual', q) || _isAsking('suspicious', q)) {
+      debugPrint('[QueryEngine] matched: anomalies');
       return _answerAnomalies(repo);
     }
     if (_isAsking('suggest', q) || _isAsking('save', q) || _isAsking('tip', q)) {
+      debugPrint('[QueryEngine] matched: suggestions');
       return _answerSuggestions(repo);
     }
     if (_isAsking('pattern', q) || _isAsking('trend', q)) {
+      debugPrint('[QueryEngine] matched: patterns');
       return _answerPatterns(repo);
     }
     if (_isAsking('budget', q) || _isAsking('remaining', q)) {
+      debugPrint('[QueryEngine] matched: budget');
       return _answerBudget(repo, q);
     }
     if (_isAsking('income', q) || _isAsking('earn', q) || _isAsking('salary', q)) {
+      debugPrint('[QueryEngine] matched: income');
       return _answerIncome(repo, q);
     }
     if (_isAsking('compare', q) || _isAsking('difference', q) || q.contains('vs')) {
+      debugPrint('[QueryEngine] matched: comparison');
       return _answerComparison(repo, q);
     }
     if (_isAsking('biggest', q) || _isAsking('largest', q) || _isAsking('most expensive', q) || _isAsking('highest', q)) {
+      debugPrint('[QueryEngine] matched: largest');
       return _answerLargest(repo, q);
     }
     if (_isAsking('recent', q) || _isAsking('last', q) || q.contains('latest')) {
+      debugPrint('[QueryEngine] matched: recent');
       return _answerRecent(repo, q);
     }
     if (_isAsking('average', q) || _isAsking('mean', q)) {
+      debugPrint('[QueryEngine] matched: average');
       return _answerAverage(repo, q);
     }
     if (_isAsking('count', q) || _isAsking('how many', q) || _isAsking('number of', q)) {
+      debugPrint('[QueryEngine] matched: count');
       return _answerCount(repo, q);
     }
     if ((q.contains('what if') || q.contains('whatif') || q.contains('simulate')) && (q.contains('cut') || q.contains('reduce') || q.contains('less'))) {
+      debugPrint('[QueryEngine] matched: what-if');
       return _answerWhatIf(repo, q);
     }
     if (_isAsking('total', q) || q.contains('spend') || q.contains('spent') || q.contains('expense')) {
+      debugPrint('[QueryEngine] matched: total');
       return _answerTotal(repo, q);
     }
 
+    debugPrint('[QueryEngine] no match, fallback');
     return _fallback(repo, q);
   }
 

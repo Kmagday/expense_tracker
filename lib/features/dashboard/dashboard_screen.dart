@@ -141,15 +141,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                if (budgetTotal > 0) ...[
-                  const SizedBox(height: 16),
+                const SizedBox(height: 16),
+                if (budgetTotal > 0)
                   _BudgetSection(
                     budgetRemaining: budgetRemaining,
                     monthTotal: monthTotal,
                     budgetTotal: budgetTotal,
                     currencyFormat: currencyFormat,
                   ),
-                ],
                 const SizedBox(height: 12),
                 GardenWidget(
                   data: GardenData(
@@ -544,10 +543,12 @@ class _AccountCard extends StatelessWidget {
                         TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
                       ],
                     ),
-                  ).then((confirmed) {
+                  ).then((confirmed) async {
                     if (confirmed == true && context.mounted) {
-                      RepositoryProvider.of<ExpenseRepository>(context).deleteAccount(account.id);
-                      context.read<DashboardBloc>().add(LoadDashboard());
+                      await RepositoryProvider.of<ExpenseRepository>(context).deleteAccount(account.id);
+                      if (context.mounted) {
+                        context.read<DashboardBloc>().add(LoadDashboard());
+                      }
                     }
                   });
                 }
@@ -627,12 +628,9 @@ class _ExpenseTile extends StatelessWidget {
 
   void _openEdit(BuildContext context, ExpenseModel expense) async {
     debugPrint('[Dashboard] opening edit for expense id=${expense.id}');
-    final changed = await Navigator.push<bool>(context, MaterialPageRoute(
+    await Navigator.push<bool>(context, MaterialPageRoute(
       builder: (_) => ExpenseFormScreen(expense: expense),
     ));
-    debugPrint('[Dashboard] edit returned changed=$changed');
-    if (changed == true && context.mounted) {
-      context.read<DashboardBloc>().add(LoadDashboard());
-    }
+    debugPrint('[Dashboard] edit returned');
   }
 }

@@ -99,6 +99,7 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
       final incomes = await _repo.getIncomes();
       final categories = await _repo.getCategories(type: 'income');
       final accts = await _repo.getAccounts();
+      accts.removeWhere((a) => a.isDebt);
       debugPrint('[IncomeBloc] loaded ${incomes.length} incomes, ${categories.length} income categories, ${accts.length} accounts');
       emit(state.copyWith(incomes: incomes, categories: categories, accounts: accts, isLoading: false));
     } catch (e) {
@@ -118,8 +119,11 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
       accountId: event.accountId,
       tags: event.tags,
     );
+    final accts = await _repo.getAccounts();
+    accts.removeWhere((a) => a.isDebt);
     emit(state.copyWith(
       incomes: await _repo.getIncomes(),
+      accounts: accts,
       isLoading: false,
     ));
   }
@@ -136,8 +140,11 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
       accountId: event.accountId,
       tags: event.tags,
     );
+    final accts = await _repo.getAccounts();
+    accts.removeWhere((a) => a.isDebt);
     emit(state.copyWith(
       incomes: await _repo.getIncomes(),
+      accounts: accts,
       isLoading: false,
     ));
   }
@@ -145,8 +152,11 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
   Future<void> _onDelete(DeleteIncomeEvent event, Emitter<IncomeState> emit) async {
     debugPrint('[IncomeBloc] deleting income id=${event.id}');
     await _repo.deleteIncome(event.id);
+    final accts = await _repo.getAccounts();
+    accts.removeWhere((a) => a.isDebt);
     emit(state.copyWith(
       incomes: await _repo.getIncomes(),
+      accounts: accts,
       isLoading: false,
     ));
   }

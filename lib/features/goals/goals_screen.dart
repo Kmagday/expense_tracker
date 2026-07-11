@@ -24,16 +24,20 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   Future<void> _load() async {
+    debugPrint('[Goals] loading goals');
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
     _goals = await repo.getGoals();
+    debugPrint('[Goals] loaded ${_goals.length} goals');
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _addGoal() async {
+    debugPrint('[Goals] opening add form');
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const _GoalFormScreen()),
     );
+    debugPrint('[Goals] add form returned: $result');
     if (result == true) _load();
   }
 
@@ -47,6 +51,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
     final totalIncome = incomes.fold(0.0, (s, e) => s + e.amount);
     final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
     final surplus = totalIncome - totalExpense;
+    debugPrint('[Goals] updating progress - incomes: $totalIncome, expenses: $totalExpense, surplus: $surplus');
 
     for (final g in _goals) {
       final newSaved = (g.savedAmount + surplus).clamp(0.0, g.targetAmount).toDouble();
@@ -124,6 +129,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                         ),
                                       );
                                       if (confirm == true) {
+                                        debugPrint('[Goals] deleting goal id=${g.id}, description=${g.description}');
                                         final repo = RepositoryProvider.of<ExpenseRepository>(context);
                                         await repo.deleteGoal(g.id);
                                         _load();
@@ -241,6 +247,7 @@ class _GoalFormScreenState extends State<_GoalFormScreen> {
                 targetAmount: amount, targetDate: _targetDate,
                 description: desc, createdAt: DateTime.now(),
               );
+              debugPrint('[Goals] saving new goal - description: $desc, target: $amount, date: $_targetDate');
               final repo = RepositoryProvider.of<ExpenseRepository>(context);
               await repo.saveGoal(goal);
               if (context.mounted) Navigator.pop(context, true);

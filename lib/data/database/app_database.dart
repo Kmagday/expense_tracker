@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.connect(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -59,6 +59,31 @@ class AppDatabase extends _$AppDatabase {
         if (from < 4) {
           await m.createTable(savingsGoalsTable);
           await migrateSavingsGoalsFromPrefs();
+        }
+        if (from < 5) {
+          await customStatement('''
+            CREATE TABLE IF NOT EXISTS debts_table (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT NOT NULL,
+              type TEXT NOT NULL,
+              principal REAL NOT NULL,
+              current_balance REAL NOT NULL,
+              interest_rate REAL NOT NULL DEFAULT 0,
+              min_payment REAL NOT NULL DEFAULT 0,
+              due_date TEXT NOT NULL,
+              linked_account_id INTEGER,
+              is_active INTEGER NOT NULL DEFAULT 1,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+          ''');
+        }
+        if (from < 6) {
+          await m.addColumn(accountsTable, accountsTable.principal);
+          await m.addColumn(accountsTable, accountsTable.interestRate);
+          await m.addColumn(accountsTable, accountsTable.minPayment);
+          await m.addColumn(accountsTable, accountsTable.dueDate);
+          await customStatement('DROP TABLE IF EXISTS debts_table');
         }
       },
     );
@@ -105,7 +130,6 @@ class AppDatabase extends _$AppDatabase {
     final defaults = [
       (name: 'Cash', type: 'Cash', icon: 'money', color: 0xFF43A047),
       (name: DefaultAccounts.bankAccount, type: 'Checking', icon: 'account_balance', color: 0xFF1E88E5),
-      (name: DefaultAccounts.creditCard, type: DefaultAccounts.creditCard, icon: 'credit_card', color: 0xFFE53935),
     ];
     for (final a in defaults) {
       await into(accountsTable).insert(AccountsTableCompanion.insert(

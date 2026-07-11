@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,11 +39,13 @@ class CurrencyCubit extends Cubit<CurrencyState> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final code = prefs.getString(PrefKeys.currencyCode) ?? UiLabels.defaultCurrencyCode;
+    debugPrint('[CurrencyCubit] loaded currency: $code');
     emit(_buildState(code));
   }
 
   Future<void> setCurrency(String code) async {
     if (!Currencies.all.containsKey(code)) return;
+    debugPrint('[CurrencyCubit] setCurrency: $code');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(PrefKeys.currencyCode, code);
     emit(_buildState(code));

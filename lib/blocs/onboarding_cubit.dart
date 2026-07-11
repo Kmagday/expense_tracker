@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:expense_tracker/core/constants/app_constants.dart';
@@ -26,16 +27,19 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final completed = prefs.getBool(_key) ?? false;
+    debugPrint('[OnboardingCubit] loaded: completed=$completed');
     emit(state.copyWith(completed: completed, loading: false));
   }
 
   Future<void> complete() async {
+    debugPrint('[OnboardingCubit] complete');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_key, true);
     emit(state.copyWith(completed: true));
   }
 
   Future<void> reset() async {
+    debugPrint('[OnboardingCubit] reset');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_key, false);
     emit(state.copyWith(completed: false));

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../data/models/expense_models.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../../core/utils/icons_helper.dart';
@@ -10,8 +11,21 @@ import 'account_detail_screen.dart';
 import '../../blocs/currency_cubit.dart';
 import 'package:expense_tracker/core/constants/app_constants.dart';
 
-class AccountsScreen extends StatelessWidget {
+class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
+
+  @override
+  State<AccountsScreen> createState() => _AccountsScreenState();
+}
+
+class _AccountsScreenState extends State<AccountsScreen> {
+  int _refreshKey = 0;
+
+  Future<List<AccountModel>> _fetchAccounts() {
+    return RepositoryProvider.of<ExpenseRepository>(context).getAccounts();
+  }
+
+  void _refresh() => setState(() => _refreshKey++);
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +41,7 @@ class AccountsScreen extends StatelessWidget {
             tooltip: 'Transfer',
             onPressed: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const TransferScreen(),
-            )),
+            )).then((_) => _refresh()),
           ),
           IconButton(
             icon: const Icon(Icons.add),
@@ -37,7 +51,8 @@ class AccountsScreen extends StatelessWidget {
         ],
       ),
       body: FutureBuilder<List<AccountModel>>(
-        future: RepositoryProvider.of<ExpenseRepository>(context).getAccounts(),
+        key: ValueKey(_refreshKey),
+        future: _fetchAccounts(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -87,45 +102,15 @@ class AccountsScreen extends StatelessWidget {
                   ),
                 ).then((confirmed) {
                   if (confirmed == true) {
+                    debugPrint('[AccountsScreen] deleting account id=${a.id}, name=${a.name}');
                     RepositoryProvider.of<ExpenseRepository>(context).deleteAccount(a.id);
                     context.read<DashboardBloc>().add(LoadDashboard());
+                    _refresh();
                     return true;
                   }
                   return false;
                 }),
-                child: Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Color(a.color).withValues(alpha: 0.2),
-                      child: Icon(iconFromString(a.icon), color: Color(a.color)),
-                    ),
-                    title: Text(a.name),
-                    subtitle: Text(a.type),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(currencyFormat.format(a.balance),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: a.balance >= 0 ? Colors.green : Colors.red,
-                            )),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 20),
-                          onPressed: () => _openForm(context, account: a),
-                        ),
-                      ],
-                    ),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => AccountDetailScreen(account: a),
-                    )).then((_) {
-                      if (context.mounted) {
-                        context.read<DashboardBloc>().add(LoadDashboard());
-                      }
-                    }),
-                  ),
-                ),
+                child: a.isDebt ? _DebtAccountCard(a: a, currencyFormat: currencyFormat, onChanged: _refresh) : _AccountCard(a: a, currencyFormat: currencyFormat, onChanged: _refresh),
               );
             },
           );
@@ -135,12 +120,160 @@ class AccountsScreen extends StatelessWidget {
   }
 
   void _openForm(BuildContext context, {AccountModel? account}) {
+    debugPrint('[AccountsScreen] opening form${account != null ? " for account id=${account.id}" : " (new)"}');
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => AccountFormScreen(account: account),
     )).then((_) {
-      if (context.mounted) {
-        context.read<DashboardBloc>().add(LoadDashboard());
-      }
+      debugPrint('[AccountsScreen] form returned, refreshing');
+      _refresh();
+      if (context.mounted) context.read<DashboardBloc>().add(LoadDashboard());
     });
+  }
+}
+
+class _AccountCard extends StatelessWidget {
+  final AccountModel a;
+  final NumberFormat currencyFormat;
+  final VoidCallback onChanged;
+  const _AccountCard({required this.a, required this.currencyFormat, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Color(a.color).withValues(alpha: 0.2),
+          child: Icon(iconFromString(a.icon), color: Color(a.color)),
+        ),
+        title: Text(a.name),
+        subtitle: Text(a.type),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(currencyFormat.format(a.balance),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: a.balance >= 0 ? Colors.green : Colors.red,
+                )),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.edit, size: 20),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => AccountFormScreen(account: a),
+              )).then((_) {
+                onChanged();
+                if (context.mounted) context.read<DashboardBloc>().add(LoadDashboard());
+              }),
+            ),
+          ],
+        ),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => AccountDetailScreen(account: a),
+        )).then((_) {
+          onChanged();
+          if (context.mounted) context.read<DashboardBloc>().add(LoadDashboard());
+        }),
+      ),
+    );
+  }
+}
+
+class _DebtAccountCard extends StatelessWidget {
+  final AccountModel a;
+  final NumberFormat currencyFormat;
+  final VoidCallback onChanged;
+  const _DebtAccountCard({required this.a, required this.currencyFormat, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = a.progress;
+    final isCreditCard = a.type == AccountTypes.creditCard;
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => AccountDetailScreen(account: a),
+        )).then((_) {
+          onChanged();
+          if (context.mounted) context.read<DashboardBloc>().add(LoadDashboard());
+        }),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Color(a.color).withValues(alpha: 0.2),
+                    child: Icon(iconFromString(a.icon), color: Color(a.color)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(a.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(a.type, style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(currencyFormat.format(a.balance),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: a.balance >= 0 ? Colors.green : Colors.red,
+                          )),
+                      if (a.interestRate != null && a.interestRate! > 0)
+                        Text('${a.interestRate!.toStringAsFixed(1)}% APR',
+                            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => AccountFormScreen(account: a),
+                    )).then((_) {
+                      onChanged();
+                      if (context.mounted) context.read<DashboardBloc>().add(LoadDashboard());
+                    }),
+                  ),
+                ],
+              ),
+              if (progress != null && a.principal! > 0) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: Colors.red.shade100,
+                    valueColor: AlwaysStoppedAnimation(progress < 1 ? Colors.red : Colors.green),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(isCreditCard
+                        ? '${currencyFormat.format(a.principal! - a.balance.abs())} available'
+                        : '${(progress * 100).toStringAsFixed(0)}% paid',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                    const Spacer(),
+                    if (a.minPayment != null && a.minPayment! > 0)
+                      Text('Min: ${currencyFormat.format(a.minPayment!)}/mo',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -2714,6 +2714,50 @@ class $AccountsTableTable extends AccountsTable
     requiredDuringInsert: false,
     defaultValue: const Constant(0xFF1E88E5),
   );
+  static const VerificationMeta _principalMeta = const VerificationMeta(
+    'principal',
+  );
+  @override
+  late final GeneratedColumn<double> principal = GeneratedColumn<double>(
+    'principal',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _interestRateMeta = const VerificationMeta(
+    'interestRate',
+  );
+  @override
+  late final GeneratedColumn<double> interestRate = GeneratedColumn<double>(
+    'interest_rate',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _minPaymentMeta = const VerificationMeta(
+    'minPayment',
+  );
+  @override
+  late final GeneratedColumn<double> minPayment = GeneratedColumn<double>(
+    'min_payment',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -2759,6 +2803,10 @@ class $AccountsTableTable extends AccountsTable
     balance,
     icon,
     color,
+    principal,
+    interestRate,
+    minPayment,
+    dueDate,
     isActive,
     createdAt,
     updatedAt,
@@ -2810,6 +2858,33 @@ class $AccountsTableTable extends AccountsTable
       context.handle(
         _colorMeta,
         color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('principal')) {
+      context.handle(
+        _principalMeta,
+        principal.isAcceptableOrUnknown(data['principal']!, _principalMeta),
+      );
+    }
+    if (data.containsKey('interest_rate')) {
+      context.handle(
+        _interestRateMeta,
+        interestRate.isAcceptableOrUnknown(
+          data['interest_rate']!,
+          _interestRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('min_payment')) {
+      context.handle(
+        _minPaymentMeta,
+        minPayment.isAcceptableOrUnknown(data['min_payment']!, _minPaymentMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
       );
     }
     if (data.containsKey('is_active')) {
@@ -2873,6 +2948,22 @@ class $AccountsTableTable extends AccountsTable
             DriftSqlType.int,
             data['${effectivePrefix}color'],
           )!,
+      principal: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}principal'],
+      ),
+      interestRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}interest_rate'],
+      ),
+      minPayment: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}min_payment'],
+      ),
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_date'],
+      ),
       isActive:
           attachedDatabase.typeMapping.read(
             DriftSqlType.bool,
@@ -2904,6 +2995,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
   final double balance;
   final String icon;
   final int color;
+  final double? principal;
+  final double? interestRate;
+  final double? minPayment;
+  final DateTime? dueDate;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -2914,6 +3009,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
     required this.balance,
     required this.icon,
     required this.color,
+    this.principal,
+    this.interestRate,
+    this.minPayment,
+    this.dueDate,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -2927,6 +3026,18 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
     map['balance'] = Variable<double>(balance);
     map['icon'] = Variable<String>(icon);
     map['color'] = Variable<int>(color);
+    if (!nullToAbsent || principal != null) {
+      map['principal'] = Variable<double>(principal);
+    }
+    if (!nullToAbsent || interestRate != null) {
+      map['interest_rate'] = Variable<double>(interestRate);
+    }
+    if (!nullToAbsent || minPayment != null) {
+      map['min_payment'] = Variable<double>(minPayment);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<DateTime>(dueDate);
+    }
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -2941,6 +3052,22 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
       balance: Value(balance),
       icon: Value(icon),
       color: Value(color),
+      principal:
+          principal == null && nullToAbsent
+              ? const Value.absent()
+              : Value(principal),
+      interestRate:
+          interestRate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(interestRate),
+      minPayment:
+          minPayment == null && nullToAbsent
+              ? const Value.absent()
+              : Value(minPayment),
+      dueDate:
+          dueDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(dueDate),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -2959,6 +3086,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
       balance: serializer.fromJson<double>(json['balance']),
       icon: serializer.fromJson<String>(json['icon']),
       color: serializer.fromJson<int>(json['color']),
+      principal: serializer.fromJson<double?>(json['principal']),
+      interestRate: serializer.fromJson<double?>(json['interestRate']),
+      minPayment: serializer.fromJson<double?>(json['minPayment']),
+      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -2974,6 +3105,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
       'balance': serializer.toJson<double>(balance),
       'icon': serializer.toJson<String>(icon),
       'color': serializer.toJson<int>(color),
+      'principal': serializer.toJson<double?>(principal),
+      'interestRate': serializer.toJson<double?>(interestRate),
+      'minPayment': serializer.toJson<double?>(minPayment),
+      'dueDate': serializer.toJson<DateTime?>(dueDate),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -2987,6 +3122,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
     double? balance,
     String? icon,
     int? color,
+    Value<double?> principal = const Value.absent(),
+    Value<double?> interestRate = const Value.absent(),
+    Value<double?> minPayment = const Value.absent(),
+    Value<DateTime?> dueDate = const Value.absent(),
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -2997,6 +3136,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
     balance: balance ?? this.balance,
     icon: icon ?? this.icon,
     color: color ?? this.color,
+    principal: principal.present ? principal.value : this.principal,
+    interestRate: interestRate.present ? interestRate.value : this.interestRate,
+    minPayment: minPayment.present ? minPayment.value : this.minPayment,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -3009,6 +3152,14 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
       balance: data.balance.present ? data.balance.value : this.balance,
       icon: data.icon.present ? data.icon.value : this.icon,
       color: data.color.present ? data.color.value : this.color,
+      principal: data.principal.present ? data.principal.value : this.principal,
+      interestRate:
+          data.interestRate.present
+              ? data.interestRate.value
+              : this.interestRate,
+      minPayment:
+          data.minPayment.present ? data.minPayment.value : this.minPayment,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -3024,6 +3175,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
           ..write('balance: $balance, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
+          ..write('principal: $principal, ')
+          ..write('interestRate: $interestRate, ')
+          ..write('minPayment: $minPayment, ')
+          ..write('dueDate: $dueDate, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3039,6 +3194,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
     balance,
     icon,
     color,
+    principal,
+    interestRate,
+    minPayment,
+    dueDate,
     isActive,
     createdAt,
     updatedAt,
@@ -3053,6 +3212,10 @@ class AccountDb extends DataClass implements Insertable<AccountDb> {
           other.balance == this.balance &&
           other.icon == this.icon &&
           other.color == this.color &&
+          other.principal == this.principal &&
+          other.interestRate == this.interestRate &&
+          other.minPayment == this.minPayment &&
+          other.dueDate == this.dueDate &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -3065,6 +3228,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
   final Value<double> balance;
   final Value<String> icon;
   final Value<int> color;
+  final Value<double?> principal;
+  final Value<double?> interestRate;
+  final Value<double?> minPayment;
+  final Value<DateTime?> dueDate;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -3075,6 +3242,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
     this.balance = const Value.absent(),
     this.icon = const Value.absent(),
     this.color = const Value.absent(),
+    this.principal = const Value.absent(),
+    this.interestRate = const Value.absent(),
+    this.minPayment = const Value.absent(),
+    this.dueDate = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -3086,6 +3257,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
     this.balance = const Value.absent(),
     this.icon = const Value.absent(),
     this.color = const Value.absent(),
+    this.principal = const Value.absent(),
+    this.interestRate = const Value.absent(),
+    this.minPayment = const Value.absent(),
+    this.dueDate = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -3100,6 +3275,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
     Expression<double>? balance,
     Expression<String>? icon,
     Expression<int>? color,
+    Expression<double>? principal,
+    Expression<double>? interestRate,
+    Expression<double>? minPayment,
+    Expression<DateTime>? dueDate,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -3111,6 +3290,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
       if (balance != null) 'balance': balance,
       if (icon != null) 'icon': icon,
       if (color != null) 'color': color,
+      if (principal != null) 'principal': principal,
+      if (interestRate != null) 'interest_rate': interestRate,
+      if (minPayment != null) 'min_payment': minPayment,
+      if (dueDate != null) 'due_date': dueDate,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -3124,6 +3307,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
     Value<double>? balance,
     Value<String>? icon,
     Value<int>? color,
+    Value<double?>? principal,
+    Value<double?>? interestRate,
+    Value<double?>? minPayment,
+    Value<DateTime?>? dueDate,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -3135,6 +3322,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
       balance: balance ?? this.balance,
       icon: icon ?? this.icon,
       color: color ?? this.color,
+      principal: principal ?? this.principal,
+      interestRate: interestRate ?? this.interestRate,
+      minPayment: minPayment ?? this.minPayment,
+      dueDate: dueDate ?? this.dueDate,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3162,6 +3353,18 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
     if (color.present) {
       map['color'] = Variable<int>(color.value);
     }
+    if (principal.present) {
+      map['principal'] = Variable<double>(principal.value);
+    }
+    if (interestRate.present) {
+      map['interest_rate'] = Variable<double>(interestRate.value);
+    }
+    if (minPayment.present) {
+      map['min_payment'] = Variable<double>(minPayment.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -3183,6 +3386,10 @@ class AccountsTableCompanion extends UpdateCompanion<AccountDb> {
           ..write('balance: $balance, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
+          ..write('principal: $principal, ')
+          ..write('interestRate: $interestRate, ')
+          ..write('minPayment: $minPayment, ')
+          ..write('dueDate: $dueDate, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -6173,6 +6380,10 @@ typedef $$AccountsTableTableCreateCompanionBuilder =
       Value<double> balance,
       Value<String> icon,
       Value<int> color,
+      Value<double?> principal,
+      Value<double?> interestRate,
+      Value<double?> minPayment,
+      Value<DateTime?> dueDate,
       Value<bool> isActive,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -6185,6 +6396,10 @@ typedef $$AccountsTableTableUpdateCompanionBuilder =
       Value<double> balance,
       Value<String> icon,
       Value<int> color,
+      Value<double?> principal,
+      Value<double?> interestRate,
+      Value<double?> minPayment,
+      Value<DateTime?> dueDate,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -6226,6 +6441,26 @@ class $$AccountsTableTableFilterComposer
 
   ColumnFilters<int> get color => $composableBuilder(
     column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get principal => $composableBuilder(
+    column: $table.principal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get interestRate => $composableBuilder(
+    column: $table.interestRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get minPayment => $composableBuilder(
+    column: $table.minPayment,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6284,6 +6519,26 @@ class $$AccountsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get principal => $composableBuilder(
+    column: $table.principal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get interestRate => $composableBuilder(
+    column: $table.interestRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get minPayment => $composableBuilder(
+    column: $table.minPayment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -6326,6 +6581,22 @@ class $$AccountsTableTableAnnotationComposer
 
   GeneratedColumn<int> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<double> get principal =>
+      $composableBuilder(column: $table.principal, builder: (column) => column);
+
+  GeneratedColumn<double> get interestRate => $composableBuilder(
+    column: $table.interestRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get minPayment => $composableBuilder(
+    column: $table.minPayment,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -6378,6 +6649,10 @@ class $$AccountsTableTableTableManager
                 Value<double> balance = const Value.absent(),
                 Value<String> icon = const Value.absent(),
                 Value<int> color = const Value.absent(),
+                Value<double?> principal = const Value.absent(),
+                Value<double?> interestRate = const Value.absent(),
+                Value<double?> minPayment = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -6388,6 +6663,10 @@ class $$AccountsTableTableTableManager
                 balance: balance,
                 icon: icon,
                 color: color,
+                principal: principal,
+                interestRate: interestRate,
+                minPayment: minPayment,
+                dueDate: dueDate,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -6400,6 +6679,10 @@ class $$AccountsTableTableTableManager
                 Value<double> balance = const Value.absent(),
                 Value<String> icon = const Value.absent(),
                 Value<int> color = const Value.absent(),
+                Value<double?> principal = const Value.absent(),
+                Value<double?> interestRate = const Value.absent(),
+                Value<double?> minPayment = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -6410,6 +6693,10 @@ class $$AccountsTableTableTableManager
                 balance: balance,
                 icon: icon,
                 color: color,
+                principal: principal,
+                interestRate: interestRate,
+                minPayment: minPayment,
+                dueDate: dueDate,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

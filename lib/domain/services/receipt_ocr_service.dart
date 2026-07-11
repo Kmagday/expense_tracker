@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 class ReceiptData {
@@ -15,16 +16,23 @@ class ReceiptOcrService {
   void dispose() => _recognizer.close();
 
   Future<ReceiptData> processImage(String imagePath) async {
+    debugPrint('[ReceiptOCR] processing image: $imagePath');
     final inputImage = InputImage.fromFilePath(imagePath);
     final recognizedText = await _recognizer.processImage(inputImage);
     final text = recognizedText.text;
+    debugPrint('[ReceiptOCR] raw text length: ${text.length} chars, lines: ${text.split('\n').length}');
 
     final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
+    final amount = _extractAmount(lines);
+    final date = _extractDate(text);
+    final merchant = _extractMerchant(lines);
+    debugPrint('[ReceiptOCR] extracted - amount: $amount, date: $date, merchant: $merchant');
+
     return ReceiptData(
-      amount: _extractAmount(lines),
-      date: _extractDate(text),
-      merchant: _extractMerchant(lines),
+      amount: amount,
+      date: date,
+      merchant: merchant,
       rawText: text,
     );
   }
