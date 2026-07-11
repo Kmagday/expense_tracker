@@ -788,160 +788,211 @@ class _GardenPainter extends CustomPainter {
   }
 
   void _drawDog(Canvas canvas, double x, double groundY, double growth, bool isDark) {
+    final stage = growth < 0.3 ? 0 : growth < 0.6 ? 1 : 2;
+    final t = stage == 0
+        ? growth / 0.3
+        : stage == 1
+            ? (growth - 0.3) / 0.3
+            : (growth - 0.6) / 0.4;
+
+    final headBodyRatio = stage == 0 ? 0.65 - t * 0.15 : stage == 1 ? 0.5 - t * 0.08 : 0.42;
+    final legRatio = stage == 0 ? 0.3 + t * 0.1 : stage == 1 ? 0.4 + t * 0.1 : 0.5;
+    final eyeScale = stage == 0 ? 1.3 - t * 0.3 : stage == 1 ? 1.0 - t * 0.15 : 0.85;
+
     final sizeFactor = 0.4 + growth * 0.6;
     final bodyW = 18 * sizeFactor;
     final bodyH = 12 * sizeFactor;
     final bodyTop = groundY - 8 * sizeFactor - bodyH;
+    final headSize = bodyW * headBodyRatio;
+    final headY = bodyTop - headSize * 0.35;
 
     final bodyColor = isDark ? const Color(0xFF8D6E63) : const Color(0xFFA1887F);
     final darkColor = isDark ? const Color(0xFF5D4037) : const Color(0xFF795548);
 
     final bodyPaint = Paint()..color = bodyColor;
-    final darkPaint = Paint()..color = darkColor;
-    final nosePaint = Paint()..color = Colors.black;
     final eyePaint = Paint()..color = isDark ? Colors.white : Colors.black87;
+    final nosePaint = Paint()..color = Colors.black;
 
     // Body
     final bodyRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(x - bodyW / 2, bodyTop, bodyW, bodyH),
-      const Radius.circular(6),
+      Radius.circular(6 * sizeFactor),
     );
     canvas.drawRRect(bodyRect, bodyPaint);
 
-    // Head
-    final headSize = 10 * sizeFactor;
-    final headY = bodyTop - headSize * 0.4;
-    canvas.drawOval(Rect.fromCenter(center: Offset(x, headY), width: headSize, height: headSize * 0.9), bodyPaint);
+    // Head (puppy: proportionally bigger head)
+    canvas.drawOval(Rect.fromCenter(center: Offset(x, headY), width: headSize, height: headSize * (stage == 0 ? 1.0 : 0.9)), bodyPaint);
 
-    // Ears (floppy)
+    // Ears (puppy: bigger, droopier ears)
     final earPaint = Paint()..color = darkColor;
-    canvas.drawOval(Rect.fromCenter(center: Offset(x - headSize * 0.45, headY - headSize * 0.1), width: 5 * sizeFactor, height: 8 * sizeFactor), earPaint);
-    canvas.drawOval(Rect.fromCenter(center: Offset(x + headSize * 0.45, headY - headSize * 0.1), width: 5 * sizeFactor, height: 8 * sizeFactor), earPaint);
+    final earW = (stage == 0 ? 6.5 : 5) * sizeFactor;
+    final earH = (stage == 0 ? 10 : 8) * sizeFactor;
+    canvas.drawOval(Rect.fromCenter(center: Offset(x - headSize * 0.45, headY - (stage == 0 ? 0.05 : 0.1) * headSize), width: earW, height: earH), earPaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(x + headSize * 0.45, headY - (stage == 0 ? 0.05 : 0.1) * headSize), width: earW, height: earH), earPaint);
 
-    // Eyes
-    canvas.drawCircle(Offset(x - headSize * 0.2, headY), 1.5 * sizeFactor, eyePaint);
-    canvas.drawCircle(Offset(x + headSize * 0.2, headY), 1.5 * sizeFactor, eyePaint);
+    // Eyes (puppy: bigger, wider eyes)
+    final eyeR = 1.5 * sizeFactor * eyeScale;
+    canvas.drawCircle(Offset(x - headSize * 0.2, headY + headSize * (stage == 0 ? 0.06 : 0.02)), eyeR, eyePaint);
+    canvas.drawCircle(Offset(x + headSize * 0.2, headY + headSize * (stage == 0 ? 0.06 : 0.02)), eyeR, eyePaint);
 
-    // Nose
-    canvas.drawCircle(Offset(x, headY + headSize * 0.2), 1.5 * sizeFactor, nosePaint);
+    // Eye shine (puppy: more prominent)
+    if (stage == 0) {
+      final shinePaint = Paint()..color = Colors.white;
+      canvas.drawCircle(Offset(x - headSize * 0.2 - eyeR * 0.3, headY + headSize * 0.02), eyeR * 0.4, shinePaint);
+      canvas.drawCircle(Offset(x + headSize * 0.2 - eyeR * 0.3, headY + headSize * 0.02), eyeR * 0.4, shinePaint);
+    }
 
-    // Legs
+    // Nose (puppy: bigger relative to face)
+    final noseR = (stage == 0 ? 2.0 : 1.5) * sizeFactor;
+    canvas.drawCircle(Offset(x, headY + headSize * (stage == 0 ? 0.22 : 0.18)), noseR, nosePaint);
+
+    // Legs (puppy: short stubby legs)
+    final legLen = legRatio * 8 * sizeFactor;
     final legPaint = Paint()
       ..color = bodyColor
-      ..strokeWidth = 3 * sizeFactor
+      ..strokeWidth = (stage == 0 ? 3.5 : 3) * sizeFactor
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(x - bodyW * 0.3, groundY - 4 * sizeFactor), Offset(x - bodyW * 0.3, groundY), legPaint);
-    canvas.drawLine(Offset(x + bodyW * 0.3, groundY - 4 * sizeFactor), Offset(x + bodyW * 0.3, groundY), legPaint);
+    canvas.drawLine(Offset(x - bodyW * 0.3, groundY - legLen), Offset(x - bodyW * 0.3, groundY), legPaint);
+    canvas.drawLine(Offset(x + bodyW * 0.3, groundY - legLen), Offset(x + bodyW * 0.3, groundY), legPaint);
 
-    // Tail
+    // Tail (puppy: shorter, perkier)
+    final tailLen = (stage == 0 ? 5 : 8) * sizeFactor;
     final tailPaint = Paint()
       ..color = bodyColor
-      ..strokeWidth = 2.5 * sizeFactor
+      ..strokeWidth = (stage == 0 ? 3 : 2.5) * sizeFactor
       ..strokeCap = StrokeCap.round;
-    final tailSway = math.sin(swayPhase * math.pi * 2) * 3;
+    final tailSway = math.sin(swayPhase * math.pi * 2) * (stage == 0 ? 2 : 3);
     canvas.drawLine(
       Offset(x + bodyW * 0.45, bodyTop + bodyH * 0.3),
-      Offset(x + bodyW * 0.45 + 8 * sizeFactor + tailSway, bodyTop - 4 * sizeFactor),
+      Offset(x + bodyW * 0.45 + tailLen + tailSway, bodyTop - (stage == 0 ? 2 : 4) * sizeFactor),
       tailPaint,
     );
   }
 
   void _drawCat(Canvas canvas, double x, double groundY, double growth, bool isDark) {
-    final sizeFactor = 0.4 + growth * 0.6;
+    final stage = growth < 0.3 ? 0 : growth < 0.6 ? 1 : 2;
+    final t = stage == 0
+        ? growth / 0.3
+        : stage == 1
+            ? (growth - 0.3) / 0.3
+            : (growth - 0.6) / 0.4;
+
+    final headBodyRatio = stage == 0 ? 0.7 - t * 0.18 : stage == 1 ? 0.52 - t * 0.08 : 0.44;
+    final eyeScale = stage == 0 ? 1.5 - t * 0.4 : stage == 1 ? 1.1 - t * 0.15 : 0.95;
+    final bodyChonk = stage == 0 ? 1.3 - t * 0.2 : stage == 1 ? 1.1 - t * 0.08 : 1.0;
+
+    final sizeFactor = (0.4 + growth * 0.6) * bodyChonk;
     final bodyW = 16 * sizeFactor;
     final bodyH = 10 * sizeFactor;
     final bodyTop = groundY - 8 * sizeFactor - bodyH;
+    final headSize = bodyW * headBodyRatio;
+    final headY = bodyTop - headSize * 0.25;
 
     final bodyColor = isDark ? const Color(0xFF616161) : const Color(0xFF9E9E9E);
     final darkColor = isDark ? const Color(0xFF424242) : const Color(0xFF757575);
-    final accentColor = isDark ? const Color(0xFFBDBDBD) : const Color(0xFFE0E0E0);
 
     final bodyPaint = Paint()..color = bodyColor;
     final darkPaint = Paint()..color = darkColor;
-    final accentPaint = Paint()..color = accentColor;
     final eyePaint = Paint()..color = isDark ? Colors.white : Colors.black87;
     final nosePaint = Paint()..color = Colors.pink.shade300;
 
-    // Body (sitting)
-    final bodyPath = Path();
-    bodyPath.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(x - bodyW / 2, bodyTop, bodyW, bodyH),
-      const Radius.circular(5),
-    ));
-    canvas.drawPath(bodyPath, bodyPaint);
+    // Body (kitten: rounder, chunkier)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(x - bodyW / 2, bodyTop, bodyW, bodyH),
+        Radius.circular(stage == 0 ? 8 : 5) * sizeFactor,
+      ),
+      bodyPaint,
+    );
 
-    // Head
-    final headSize = 9 * sizeFactor;
-    final headY = bodyTop - headSize * 0.3;
+    // Head (kitten: bigger relative to body)
     canvas.drawOval(Rect.fromCenter(center: Offset(x, headY), width: headSize, height: headSize), bodyPaint);
 
-    // Ears (pointy triangles)
+    // Ears (kitten: smaller, rounder ears)
+    final earH = (stage == 0 ? headSize * 0.45 : headSize * 0.6);
+    final earW = (stage == 0 ? headSize * 0.25 : headSize * 0.3);
     final earPath = Path();
-    earPath.moveTo(x - headSize * 0.35, headY - headSize * 0.1);
-    earPath.lineTo(x - headSize * 0.2, headY - headSize * 0.7);
-    earPath.lineTo(x - headSize * 0.05, headY - headSize * 0.1);
+    earPath.moveTo(x - headSize * 0.3, headY - headSize * 0.05);
+    earPath.lineTo(x - headSize * (stage == 0 ? 0.15 : 0.2), headY - earH);
+    earPath.lineTo(x, headY - headSize * 0.05);
     earPath.close();
     canvas.drawPath(earPath, darkPaint);
 
     final earPath2 = Path();
-    earPath2.moveTo(x + headSize * 0.05, headY - headSize * 0.1);
-    earPath2.lineTo(x + headSize * 0.2, headY - headSize * 0.7);
-    earPath2.lineTo(x + headSize * 0.35, headY - headSize * 0.1);
+    earPath2.moveTo(x, headY - headSize * 0.05);
+    earPath2.lineTo(x + headSize * (stage == 0 ? 0.15 : 0.2), headY - earH);
+    earPath2.lineTo(x + headSize * 0.3, headY - headSize * 0.05);
     earPath2.close();
     canvas.drawPath(earPath2, darkPaint);
 
     // Inner ears
     final innerEar = Paint()..color = Colors.pink.shade200;
-    canvas.drawPath(_earInner(x - headSize * 0.2, headY - headSize * 0.5, headSize * 0.4), innerEar);
-    canvas.drawPath(_earInner(x + headSize * 0.2, headY - headSize * 0.5, headSize * 0.4), innerEar);
+    final innerSz = stage == 0 ? headSize * 0.25 : headSize * 0.3;
+    canvas.drawPath(_earInner(x - headSize * 0.15, headY - earH * 0.55, innerSz), innerEar);
+    canvas.drawPath(_earInner(x + headSize * 0.15, headY - earH * 0.55, innerSz), innerEar);
 
-    // Eyes
-    canvas.drawCircle(Offset(x - headSize * 0.2, headY + headSize * 0.05), 1.5 * sizeFactor, eyePaint);
-    canvas.drawCircle(Offset(x + headSize * 0.2, headY + headSize * 0.05), 1.5 * sizeFactor, eyePaint);
+    // Eyes (kitten: huge anime eyes)
+    final eyeR = 1.5 * sizeFactor * eyeScale;
+    final eyeY = headY + headSize * (stage == 0 ? 0.08 : 0.04);
+    canvas.drawCircle(Offset(x - headSize * 0.2, eyeY), eyeR, eyePaint);
+    canvas.drawCircle(Offset(x + headSize * 0.2, eyeY), eyeR, eyePaint);
+
+    // Eye shine (kitten: big sparkle)
+    if (stage <= 1) {
+      final shinePaint = Paint()..color = Colors.white;
+      final sr = eyeR * 0.45;
+      canvas.drawCircle(Offset(x - headSize * 0.2 - sr * 0.4, eyeY - sr * 0.3), sr, shinePaint);
+      canvas.drawCircle(Offset(x + headSize * 0.2 - sr * 0.4, eyeY - sr * 0.3), sr, shinePaint);
+    }
 
     // Nose
-    canvas.drawCircle(Offset(x, headY + headSize * 0.2), 1.2 * sizeFactor, nosePaint);
+    canvas.drawCircle(Offset(x, headY + headSize * 0.22), 1.2 * sizeFactor, nosePaint);
 
-    // Whiskers
+    // Whiskers (kitten: shorter)
+    final whiskerLen = (stage == 0 ? 5 : 8) * sizeFactor;
     final whiskerPaint = Paint()
       ..color = isDark ? Colors.grey.shade400 : Colors.grey.shade600
       ..strokeWidth = 0.8
       ..strokeCap = StrokeCap.round;
     for (int s = -1; s <= 1; s += 2) {
       final wx = x + s * headSize * 0.15;
-      final wy = headY + headSize * 0.15;
+      final wy = headY + headSize * 0.18;
       for (int w = -1; w <= 1; w++) {
         canvas.drawLine(
           Offset(wx, wy + w * 2 * sizeFactor),
-          Offset(wx + s * 8 * sizeFactor, wy + w * 3 * sizeFactor),
+          Offset(wx + s * whiskerLen, wy + w * 3 * sizeFactor),
           whiskerPaint,
         );
       }
     }
 
-    // Tail (curved)
+    // Tail (kitten: shorter, stubbier)
     final tailPaint = Paint()
       ..color = bodyColor
-      ..strokeWidth = 3 * sizeFactor
+      ..strokeWidth = (stage == 0 ? 4 : 3) * sizeFactor
       ..strokeCap = StrokeCap.round;
     final tailPath = Path();
     final tailStart = Offset(x - bodyW * 0.4, bodyTop + bodyH * 0.5);
     tailPath.moveTo(tailStart.dx, tailStart.dy);
+    final tailLen = (stage == 0 ? 8 : 12) * sizeFactor;
     tailPath.cubicTo(
-      tailStart.dx - 12 * sizeFactor, tailStart.dy - 6 * sizeFactor,
-      tailStart.dx - 8 * sizeFactor, tailStart.dy - 14 * sizeFactor,
-      tailStart.dx - 4 * sizeFactor, tailStart.dy - 16 * sizeFactor,
+      tailStart.dx - tailLen * 0.8, tailStart.dy - tailLen * 0.3,
+      tailStart.dx - tailLen * 0.5, tailStart.dy - tailLen * 0.8,
+      tailStart.dx - tailLen * 0.2, tailStart.dy - tailLen,
     );
     canvas.drawPath(tailPath, tailPaint);
 
-    // Stripes (accent)
-    final stripePaint = Paint()
-      ..color = darkColor
-      ..strokeWidth = 1.5 * sizeFactor;
-    for (int i = -1; i <= 1; i++) {
-      final sx = x + i * bodyW * 0.2;
-      final sy = bodyTop + bodyH * 0.3;
-      canvas.drawLine(Offset(sx, sy), Offset(sx - 2 * sizeFactor, sy + bodyH * 0.4), stripePaint);
+    // Stripes (kitten: fewer, lighter stripes)
+    if (stage >= 1) {
+      final stripePaint = Paint()
+        ..color = darkColor
+        ..strokeWidth = (stage == 1 ? 1.2 : 1.5) * sizeFactor;
+      final stripeCount = stage == 1 ? 2 : 3;
+      for (int i = 0; i < stripeCount; i++) {
+        final sx = x + (i - 1) * bodyW * 0.2;
+        final sy = bodyTop + bodyH * 0.25;
+        canvas.drawLine(Offset(sx, sy), Offset(sx - 2 * sizeFactor, sy + bodyH * 0.35), stripePaint);
+      }
     }
   }
 
