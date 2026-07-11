@@ -544,7 +544,7 @@ class _GardenPainter extends CustomPainter {
       _drawFireflies(canvas, w, h);
     }
 
-    if (showBirds && growth > 0.4) {
+    if (showBirds) {
       _drawBirds(canvas, w, h, growth);
     }
 
