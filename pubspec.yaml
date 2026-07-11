@@ -1,0 +1,47 @@
+name: expense_tracker
+description: "An AI-powered expense tracker app."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.0
+  fl_chart: ^0.70.2
+  intl: ^0.19.0
+  google_fonts: ^6.2.1
+  flutter_local_notifications: ^18.0.1
+  local_auth: ^2.3.0
+  image_picker: ^1.1.2
+  google_mlkit_text_recognition: ^0.14.0
+  csv: ^6.0.0
+  pdf: ^3.11.1
+  share_plus: ^10.1.4
+  flutter_secure_storage: ^9.2.4
+  uuid: ^4.5.1
+  http: ^1.6.0
+  timeago: ^3.7.0
+  collection: ^1.19.1
+  shared_preferences: ^2.3.5
+  path_provider: ^2.1.0
+  drift: ^2.25.0
+  sqlite3: ">=2.6.0 <2.7.0"
+  sqlite3_flutter_libs: ^0.5.0
+  encrypt: ^5.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  drift_dev: ^2.25.0
+  build_runner: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  generate: true
