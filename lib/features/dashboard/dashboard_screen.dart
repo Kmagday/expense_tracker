@@ -15,7 +15,6 @@ import '../../widgets/garden_widget.dart';
 import 'package:expense_tracker/core/constants/app_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../goals/goals_screen.dart';
-import '../daily_budget/daily_budget_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -26,7 +25,15 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   double _dailyBudgetTarget = 0;
-  bool _hasGoals = false;
+  List<SavingsGoal> _goals = [];
+
+  bool get _hasGoals => _goals.isNotEmpty;
+
+  double get _goalProgress {
+    if (_goals.isEmpty) return 0;
+    final total = _goals.fold(0.0, (s, g) => s + g.progress);
+    return (total / _goals.length) / 100;
+  }
 
   @override
   void initState() {
@@ -38,11 +45,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted) return;
     final prefs = await SharedPreferences.getInstance();
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
-    final goals = await repo.getGoals();
+    _goals = await repo.getGoals();
     if (mounted) {
       setState(() {
         _dailyBudgetTarget = prefs.getDouble(PrefKeys.dailyBudgetTarget) ?? 0;
-        _hasGoals = goals.isNotEmpty;
       });
     }
   }
@@ -90,6 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           body: RefreshIndicator(
             onRefresh: () async {
               context.read<DashboardBloc>().add(LoadDashboard());
+              await _loadPrefs();
             },
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -152,11 +159,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 12),
                 GardenWidget(
                   data: GardenData(
-                    growthLevel: budgetTotal > 0
-                        ? (budgetRemaining / budgetTotal).clamp(0.0, 1.0)
-                        : 0.0,
-                    showFlowers: (summary?.totalToday ?? double.infinity) <=
-                        (budgetTotal > 0 ? budgetTotal / DateTime(now.year, now.month + 1, 0).day : 0),
+                    growthLevel: _goalProgress,
+                    showFlowers: _goals.isNotEmpty && _goalProgress > 0,
                     showBirds: _hasGoals,
                     dailyBudget: _dailyBudgetTarget > 0
                         ? _dailyBudgetTarget
@@ -167,32 +171,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const DailyBudgetScreen()),
+                    MaterialPageRoute(builder: (_) => const GoalsScreen()),
                   ),
                 ),
-                const SizedBox(height: 12),
-                if (_hasGoals)
-                  InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const GoalsScreen()),
-                    ),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Icon(Icons.savings, color: Colors.green[600]),
-                            const SizedBox(width: 8),
-                            Text('Savings Goals', style: theme.textTheme.titleSmall),
-                            const Spacer(),
-                            const Icon(Icons.arrow_forward_ios, size: 14),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                 if (summary?.topCategory != null && summary!.topCategory != 'None') ...[
                   const SizedBox(height: 12),
                   _TopCategoryCard(
