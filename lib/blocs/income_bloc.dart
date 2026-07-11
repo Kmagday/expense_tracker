@@ -110,6 +110,7 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
 
   Future<void> _onAdd(AddIncomeEvent event, Emitter<IncomeState> emit) async {
     debugPrint('[IncomeBloc] adding income - amount: ${event.amount}, categoryId: ${event.categoryId}');
+    emit(state.copyWith(isLoading: true));
     await _repo.addIncome(
       amount: event.amount,
       categoryId: event.categoryId,
@@ -130,6 +131,7 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
 
   Future<void> _onUpdate(UpdateIncomeEvent event, Emitter<IncomeState> emit) async {
     debugPrint('[IncomeBloc] updating income id=${event.id}');
+    emit(state.copyWith(isLoading: true));
     await _repo.updateIncome(
       event.id,
       amount: event.amount,
@@ -151,6 +153,7 @@ class IncomeBloc extends Bloc<IncomeEvent, IncomeState> {
 
   Future<void> _onDelete(DeleteIncomeEvent event, Emitter<IncomeState> emit) async {
     debugPrint('[IncomeBloc] deleting income id=${event.id}');
+    emit(state.copyWith(isLoading: true));
     await _repo.deleteIncome(event.id);
     final accts = await _repo.getAccounts();
     accts.removeWhere((a) => a.isDebt);
