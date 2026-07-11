@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/expense_models.dart';
 import '../../data/repositories/expense_repository.dart';
+import '../../core/utils/icons_helper.dart';
 import '../../blocs/currency_cubit.dart';
 import 'package:expense_tracker/core/constants/app_constants.dart';
 
@@ -41,31 +42,104 @@ class _GoalsScreenState extends State<GoalsScreen> {
     if (result == true) _load();
   }
 
-  Future<void> _updateProgress() async {
+  Future<void> _showTransferDialog(SavingsGoal goal) async {
     final repo = RepositoryProvider.of<ExpenseRepository>(context);
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
-    final monthEnd = DateTime(now.year, now.month + 1, 0);
-    final incomes = await repo.getIncomes(from: monthStart, to: monthEnd);
-    final expenses = await repo.getExpenses(from: monthStart, to: monthEnd);
-    final totalIncome = incomes.fold(0.0, (s, e) => s + e.amount);
-    final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
-    final surplus = totalIncome - totalExpense;
-    debugPrint('[Goals] updating progress - incomes: $totalIncome, expenses: $totalExpense, surplus: $surplus');
+    final accounts = await repo.getAccounts();
+    final nonDebt = accounts.where((a) => !a.isDebt).toList();
+    if (nonDebt.isEmpty || !mounted) return;
 
-    for (final g in _goals) {
-      final newSaved = (g.savedAmount + surplus).clamp(0.0, g.targetAmount).toDouble();
+    final amountCtl = TextEditingController();
+    int? selectedAccountId;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Transfer to "${goal.description}"'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                value: selectedAccountId,
+                decoration: const InputDecoration(labelText: 'From Account'),
+                items: nonDebt.map((a) => DropdownMenuItem(
+                  value: a.id,
+                  child: Row(children: [
+                    Icon(iconFromString(a.icon), size: 18, color: Color(a.color)),
+                    const SizedBox(width: 8),
+                    Text('${a.name} (${a.balance.toStringAsFixed(0)})'),
+                  ]),
+                )).toList(),
+                onChanged: (v) => setDialogState(() => selectedAccountId = v),
+                validator: (v) => v == null ? 'Select account' : null,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountCtl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () {
+              if (selectedAccountId == null || amountCtl.text.isEmpty) return;
+              Navigator.pop(ctx, true);
+            }, child: const Text('Transfer')),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final amount = double.tryParse(amountCtl.text);
+    if (amount == null || amount <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid amount'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    final account = nonDebt.firstWhere((a) => a.id == selectedAccountId);
+    if (account.balance < amount) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Insufficient balance'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    debugPrint('[Goals] transferring $amount from account $selectedAccountId to goal ${goal.id}');
+
+    try {
+      await repo.updateAccountBalance(selectedAccountId!, -amount);
       final updated = SavingsGoal(
-        id: g.id, targetAmount: g.targetAmount, targetDate: g.targetDate,
-        description: g.description, savedAmount: newSaved, createdAt: g.createdAt,
+        id: goal.id, targetAmount: goal.targetAmount, targetDate: goal.targetDate,
+        description: goal.description,
+        savedAmount: (goal.savedAmount + amount).clamp(0.0, goal.targetAmount),
+        createdAt: goal.createdAt,
       );
       await repo.saveGoal(updated);
-    }
-    await _load();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ErrorMessages.goalProgress(surplus))),
-      );
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Transferred ${context.read<CurrencyCubit>().state.symbol}${amount.toStringAsFixed(2)} to "${goal.description}"')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[Goals] transfer error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Transfer failed: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -113,6 +187,11 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                 children: [
                                   Expanded(
                                     child: Text(g.description, style: theme.textTheme.titleMedium),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.account_balance_wallet, color: Colors.green, size: 20),
+                                    tooltip: 'Transfer from wallet',
+                                    onPressed: () => _showTransferDialog(g),
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
@@ -178,6 +257,34 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   ),
                 ),
     );
+  }
+
+  Future<void> _updateProgress() async {
+    final repo = RepositoryProvider.of<ExpenseRepository>(context);
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
+    final incomes = await repo.getIncomes(from: monthStart, to: monthEnd);
+    final expenses = await repo.getExpenses(from: monthStart, to: monthEnd);
+    final totalIncome = incomes.fold(0.0, (s, e) => s + e.amount);
+    final totalExpense = expenses.fold(0.0, (s, e) => s + e.amount);
+    final surplus = totalIncome - totalExpense;
+    debugPrint('[Goals] updating progress - incomes: $totalIncome, expenses: $totalExpense, surplus: $surplus');
+
+    for (final g in _goals) {
+      final newSaved = (g.savedAmount + surplus).clamp(0.0, g.targetAmount).toDouble();
+      final updated = SavingsGoal(
+        id: g.id, targetAmount: g.targetAmount, targetDate: g.targetDate,
+        description: g.description, savedAmount: newSaved, createdAt: g.createdAt,
+      );
+      await repo.saveGoal(updated);
+    }
+    await _load();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ErrorMessages.goalProgress(surplus))),
+      );
+    }
   }
 }
 

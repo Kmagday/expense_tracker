@@ -147,6 +147,9 @@ class ExpenseRepository {
     );
   }
 
+  Future<void> updateAccountBalance(int accountId, double delta) =>
+      _db.updateAccountBalance(accountId, delta);
+
   // ── Transfers ──
 
   Future<TransferModel> addTransfer({required int fromAccountId, required int toAccountId, required double amount, DateTime? date, String? note}) async {
