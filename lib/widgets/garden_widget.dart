@@ -548,6 +548,10 @@ class _GardenPainter extends CustomPainter {
       _drawBirds(canvas, w, h, growth);
     }
 
+    if (growth > 0.05) {
+      _drawPets(canvas, w, groundY, growth);
+    }
+
     if (rippleProgress >= 0) {
       _drawRipple(canvas);
     }
@@ -771,6 +775,183 @@ class _GardenPainter extends CustomPainter {
       path.quadraticBezierTo(bx - 8, by - 4 - wingOffset, bx - 16, by);
       canvas.drawPath(path, birdPaint);
     }
+  }
+
+  void _drawPets(Canvas canvas, double w, double groundY, double growth) {
+    final isDark = brightness == Brightness.dark;
+
+    // Dog: sits on the left side of the tree
+    _drawDog(canvas, w * 0.25, groundY, growth, isDark);
+
+    // Cat: sits on the right side of the tree
+    _drawCat(canvas, w * 0.72, groundY, growth, isDark);
+  }
+
+  void _drawDog(Canvas canvas, double x, double groundY, double growth, bool isDark) {
+    final sizeFactor = 0.4 + growth * 0.6;
+    final bodyW = 18 * sizeFactor;
+    final bodyH = 12 * sizeFactor;
+    final bodyTop = groundY - 8 * sizeFactor - bodyH;
+
+    final bodyColor = isDark ? const Color(0xFF8D6E63) : const Color(0xFFA1887F);
+    final darkColor = isDark ? const Color(0xFF5D4037) : const Color(0xFF795548);
+
+    final bodyPaint = Paint()..color = bodyColor;
+    final darkPaint = Paint()..color = darkColor;
+    final nosePaint = Paint()..color = Colors.black;
+    final eyePaint = Paint()..color = isDark ? Colors.white : Colors.black87;
+
+    // Body
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(x - bodyW / 2, bodyTop, bodyW, bodyH),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(bodyRect, bodyPaint);
+
+    // Head
+    final headSize = 10 * sizeFactor;
+    final headY = bodyTop - headSize * 0.4;
+    canvas.drawOval(Rect.fromCenter(center: Offset(x, headY), width: headSize, height: headSize * 0.9), bodyPaint);
+
+    // Ears (floppy)
+    final earPaint = Paint()..color = darkColor;
+    canvas.drawOval(Rect.fromCenter(center: Offset(x - headSize * 0.45, headY - headSize * 0.1), width: 5 * sizeFactor, height: 8 * sizeFactor), earPaint);
+    canvas.drawOval(Rect.fromCenter(center: Offset(x + headSize * 0.45, headY - headSize * 0.1), width: 5 * sizeFactor, height: 8 * sizeFactor), earPaint);
+
+    // Eyes
+    canvas.drawCircle(Offset(x - headSize * 0.2, headY), 1.5 * sizeFactor, eyePaint);
+    canvas.drawCircle(Offset(x + headSize * 0.2, headY), 1.5 * sizeFactor, eyePaint);
+
+    // Nose
+    canvas.drawCircle(Offset(x, headY + headSize * 0.2), 1.5 * sizeFactor, nosePaint);
+
+    // Legs
+    final legPaint = Paint()
+      ..color = bodyColor
+      ..strokeWidth = 3 * sizeFactor
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(x - bodyW * 0.3, groundY - 4 * sizeFactor), Offset(x - bodyW * 0.3, groundY), legPaint);
+    canvas.drawLine(Offset(x + bodyW * 0.3, groundY - 4 * sizeFactor), Offset(x + bodyW * 0.3, groundY), legPaint);
+
+    // Tail
+    final tailPaint = Paint()
+      ..color = bodyColor
+      ..strokeWidth = 2.5 * sizeFactor
+      ..strokeCap = StrokeCap.round;
+    final tailSway = math.sin(swayPhase * math.pi * 2) * 3;
+    canvas.drawLine(
+      Offset(x + bodyW * 0.45, bodyTop + bodyH * 0.3),
+      Offset(x + bodyW * 0.45 + 8 * sizeFactor + tailSway, bodyTop - 4 * sizeFactor),
+      tailPaint,
+    );
+  }
+
+  void _drawCat(Canvas canvas, double x, double groundY, double growth, bool isDark) {
+    final sizeFactor = 0.4 + growth * 0.6;
+    final bodyW = 16 * sizeFactor;
+    final bodyH = 10 * sizeFactor;
+    final bodyTop = groundY - 8 * sizeFactor - bodyH;
+
+    final bodyColor = isDark ? const Color(0xFF616161) : const Color(0xFF9E9E9E);
+    final darkColor = isDark ? const Color(0xFF424242) : const Color(0xFF757575);
+    final accentColor = isDark ? const Color(0xFFBDBDBD) : const Color(0xFFE0E0E0);
+
+    final bodyPaint = Paint()..color = bodyColor;
+    final darkPaint = Paint()..color = darkColor;
+    final accentPaint = Paint()..color = accentColor;
+    final eyePaint = Paint()..color = isDark ? Colors.white : Colors.black87;
+    final nosePaint = Paint()..color = Colors.pink.shade300;
+
+    // Body (sitting)
+    final bodyPath = Path();
+    bodyPath.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(x - bodyW / 2, bodyTop, bodyW, bodyH),
+      const Radius.circular(5),
+    ));
+    canvas.drawPath(bodyPath, bodyPaint);
+
+    // Head
+    final headSize = 9 * sizeFactor;
+    final headY = bodyTop - headSize * 0.3;
+    canvas.drawOval(Rect.fromCenter(center: Offset(x, headY), width: headSize, height: headSize), bodyPaint);
+
+    // Ears (pointy triangles)
+    final earPath = Path();
+    earPath.moveTo(x - headSize * 0.35, headY - headSize * 0.1);
+    earPath.lineTo(x - headSize * 0.2, headY - headSize * 0.7);
+    earPath.lineTo(x - headSize * 0.05, headY - headSize * 0.1);
+    earPath.close();
+    canvas.drawPath(earPath, darkPaint);
+
+    final earPath2 = Path();
+    earPath2.moveTo(x + headSize * 0.05, headY - headSize * 0.1);
+    earPath2.lineTo(x + headSize * 0.2, headY - headSize * 0.7);
+    earPath2.lineTo(x + headSize * 0.35, headY - headSize * 0.1);
+    earPath2.close();
+    canvas.drawPath(earPath2, darkPaint);
+
+    // Inner ears
+    final innerEar = Paint()..color = Colors.pink.shade200;
+    canvas.drawPath(_earInner(x - headSize * 0.2, headY - headSize * 0.5, headSize * 0.4), innerEar);
+    canvas.drawPath(_earInner(x + headSize * 0.2, headY - headSize * 0.5, headSize * 0.4), innerEar);
+
+    // Eyes
+    canvas.drawCircle(Offset(x - headSize * 0.2, headY + headSize * 0.05), 1.5 * sizeFactor, eyePaint);
+    canvas.drawCircle(Offset(x + headSize * 0.2, headY + headSize * 0.05), 1.5 * sizeFactor, eyePaint);
+
+    // Nose
+    canvas.drawCircle(Offset(x, headY + headSize * 0.2), 1.2 * sizeFactor, nosePaint);
+
+    // Whiskers
+    final whiskerPaint = Paint()
+      ..color = isDark ? Colors.grey.shade400 : Colors.grey.shade600
+      ..strokeWidth = 0.8
+      ..strokeCap = StrokeCap.round;
+    for (int s = -1; s <= 1; s += 2) {
+      final wx = x + s * headSize * 0.15;
+      final wy = headY + headSize * 0.15;
+      for (int w = -1; w <= 1; w++) {
+        canvas.drawLine(
+          Offset(wx, wy + w * 2 * sizeFactor),
+          Offset(wx + s * 8 * sizeFactor, wy + w * 3 * sizeFactor),
+          whiskerPaint,
+        );
+      }
+    }
+
+    // Tail (curved)
+    final tailPaint = Paint()
+      ..color = bodyColor
+      ..strokeWidth = 3 * sizeFactor
+      ..strokeCap = StrokeCap.round;
+    final tailPath = Path();
+    final tailStart = Offset(x - bodyW * 0.4, bodyTop + bodyH * 0.5);
+    tailPath.moveTo(tailStart.dx, tailStart.dy);
+    tailPath.cubicTo(
+      tailStart.dx - 12 * sizeFactor, tailStart.dy - 6 * sizeFactor,
+      tailStart.dx - 8 * sizeFactor, tailStart.dy - 14 * sizeFactor,
+      tailStart.dx - 4 * sizeFactor, tailStart.dy - 16 * sizeFactor,
+    );
+    canvas.drawPath(tailPath, tailPaint);
+
+    // Stripes (accent)
+    final stripePaint = Paint()
+      ..color = darkColor
+      ..strokeWidth = 1.5 * sizeFactor;
+    for (int i = -1; i <= 1; i++) {
+      final sx = x + i * bodyW * 0.2;
+      final sy = bodyTop + bodyH * 0.3;
+      canvas.drawLine(Offset(sx, sy), Offset(sx - 2 * sizeFactor, sy + bodyH * 0.4), stripePaint);
+    }
+  }
+
+  Path _earInner(double cx, double cy, double size) {
+    final p = Path();
+    p.moveTo(cx - size * 0.2, cy + size * 0.1);
+    p.lineTo(cx, cy - size * 0.3);
+    p.lineTo(cx + size * 0.2, cy + size * 0.1);
+    p.close();
+    return p;
   }
 
   void _drawFireflies(Canvas canvas, double w, double h) {
