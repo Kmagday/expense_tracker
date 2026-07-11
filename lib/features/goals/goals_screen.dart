@@ -116,6 +116,16 @@ class _GoalsScreenState extends State<GoalsScreen> {
       return;
     }
 
+    final remaining = goal.targetAmount - goal.savedAmount;
+    if (amount > remaining) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Only ${context.read<CurrencyCubit>().state.symbol}${remaining.toStringAsFixed(2)} needed to complete this goal'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
     debugPrint('[Goals] transferring $amount from account $selectedAccountId to goal ${goal.id}');
 
     try {
@@ -123,7 +133,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
       final updated = SavingsGoal(
         id: goal.id, targetAmount: goal.targetAmount, targetDate: goal.targetDate,
         description: goal.description,
-        savedAmount: (goal.savedAmount + amount).clamp(0.0, goal.targetAmount),
+        savedAmount: goal.savedAmount + amount,
         createdAt: goal.createdAt,
       );
       await repo.saveGoal(updated);
@@ -141,6 +151,75 @@ class _GoalsScreenState extends State<GoalsScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _showRefundDialog(SavingsGoal goal) async {
+    final repo = RepositoryProvider.of<ExpenseRepository>(context);
+    final accounts = await repo.getAccounts();
+    final nonDebt = accounts.where((a) => !a.isDebt).toList();
+    if (!mounted) return false;
+
+    final savedAmount = goal.savedAmount;
+    int? refundAccountId;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Refund "${goal.description}"?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('This goal has ${savedAmount.toStringAsFixed(0)} saved. Choose an account to refund to, or cancel to keep the money in the goal.'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                value: refundAccountId,
+                decoration: const InputDecoration(labelText: 'Refund to Account'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Don\'t refund (delete anyway)')),
+                  ...nonDebt.map((a) => DropdownMenuItem(
+                    value: a.id,
+                    child: Row(children: [
+                      Icon(iconFromString(a.icon), size: 18, color: Color(a.color)),
+                      const SizedBox(width: 8),
+                      Text('${a.name} (${a.balance.toStringAsFixed(0)})'),
+                    ]),
+                  )),
+                ],
+                onChanged: (v) => setDialogState(() => refundAccountId = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != true || !mounted) return false;
+
+    if (refundAccountId != null) {
+      try {
+        await repo.updateAccountBalance(refundAccountId!, savedAmount);
+        debugPrint('[Goals] refunded $savedAmount to account $refundAccountId on goal delete');
+      } catch (e) {
+        debugPrint('[Goals] refund failed: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Refund failed: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+
+    return true;
   }
 
   @override
@@ -196,23 +275,27 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                   IconButton(
                                     icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
                                     onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text(UiLabels.deleteGoalTitle),
-                                          content: Text('Delete "${g.description}"?'),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        debugPrint('[Goals] deleting goal id=${g.id}, description=${g.description}');
-                                        final repo = RepositoryProvider.of<ExpenseRepository>(context);
-                                        await repo.deleteGoal(g.id);
-                                        _load();
+                                      if (g.savedAmount > 0) {
+                                        final refunded = await _showRefundDialog(g);
+                                        if (!refunded) return;
+                                      } else {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title: const Text(UiLabels.deleteGoalTitle),
+                                            content: Text('Delete "${g.description}"?'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm != true) return;
                                       }
+                                      debugPrint('[Goals] deleting goal id=${g.id}, description=${g.description}');
+                                      final repo = RepositoryProvider.of<ExpenseRepository>(context);
+                                      await repo.deleteGoal(g.id);
+                                      _load();
                                     },
                                   ),
                                 ],
