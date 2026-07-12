@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'blocs/theme_cubit.dart';
 import 'blocs/onboarding_cubit.dart';
+import 'data/repositories/expense_repository.dart';
+import 'features/splash/splash_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/expense/expense_form_screen.dart';
@@ -30,12 +33,14 @@ class ExpenseTrackerApp extends StatelessWidget {
           themeMode: themeMode,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: BlocBuilder<OnboardingCubit, OnboardingState>(
-            builder: (context, state) {
-              if (state.loading) return const SizedBox.shrink();
-              if (!state.completed) return const OnboardingScreen();
-              return LockScreen(child: const MainShell());
-            },
+          home: SplashScreen(
+            child: BlocBuilder<OnboardingCubit, OnboardingState>(
+              builder: (context, state) {
+                if (state.loading) return const SizedBox.shrink();
+                if (!state.completed) return const OnboardingScreen();
+                return LockScreen(child: const MainShell());
+              },
+            ),
           ),
         );
       },
@@ -52,6 +57,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  Timer? _recurringTimer;
 
   final screens = const [
     DashboardScreen(),
@@ -65,6 +71,21 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     debugPrint('[MainShell] initialized');
+    _recurringTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      try {
+        final repo = RepositoryProvider.of<ExpenseRepository>(context, listen: false);
+        repo.generateRecurringExpenses();
+        debugPrint('[MainShell] periodic recurring check completed');
+      } catch (e) {
+        debugPrint('[MainShell] periodic recurring error: $e');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _recurringTimer?.cancel();
+    super.dispose();
   }
 
   @override

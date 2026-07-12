@@ -15,12 +15,14 @@ class DashboardState {
   final DashboardSummary? summary;
   final List<ExpenseModel> recentExpenses;
   final List<AccountModel> accounts;
+  final List<ExpenseModel> allExpenses;
   final bool isLoading;
 
   const DashboardState({
     this.summary,
     this.recentExpenses = const [],
     this.accounts = const [],
+    this.allExpenses = const [],
     this.isLoading = false,
   });
 
@@ -28,12 +30,14 @@ class DashboardState {
     DashboardSummary? summary,
     List<ExpenseModel>? recentExpenses,
     List<AccountModel>? accounts,
+    List<ExpenseModel>? allExpenses,
     bool? isLoading,
   }) {
     return DashboardState(
       summary: summary ?? this.summary,
       recentExpenses: recentExpenses ?? this.recentExpenses,
       accounts: accounts ?? this.accounts,
+      allExpenses: allExpenses ?? this.allExpenses,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -58,6 +62,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(state.copyWith(
         summary: result.summary,
         recentExpenses: result.allExpenses.take(5).toList(),
+        allExpenses: result.allExpenses,
         accounts: accts,
         isLoading: false,
       ));

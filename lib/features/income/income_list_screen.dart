@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/models/expense_models.dart';
+import '../../data/repositories/expense_repository.dart';
 import '../../blocs/income_bloc.dart';
 import '../../blocs/dashboard_bloc.dart';
 import '../../core/utils/icons_helper.dart';
@@ -27,6 +32,7 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
   double? _filterMinAmount;
   double? _filterMaxAmount;
   String? _filterTag;
+  int? _pendingRestoreId;
 
   @override
   void dispose() {
@@ -200,7 +206,16 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
             _filterTag != null;
 
         return Scaffold(
-          appBar: AppBar(title: const Text(PageTitles.allIncomes)),
+          appBar: AppBar(
+            title: const Text(PageTitles.allIncomes),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.file_download),
+                tooltip: 'Export CSV',
+                onPressed: () => _exportCSV(context, incomes),
+              ),
+            ],
+          ),
           body: Column(
             children: [
               Padding(
@@ -328,13 +343,19 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
                                 ),
                               ),
                               onDismissed: (_) {
+                                _pendingRestoreId = e.id;
                                 context.read<IncomeBloc>().add(DeleteIncomeEvent(e.id));
                                 context.read<DashboardBloc>().add(LoadDashboard());
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Income deleted'),
                                     action: SnackBarAction(label: 'Undo', onPressed: () {
-                                      context.read<IncomeBloc>().add(LoadIncomes());
+                                      final rid = _pendingRestoreId;
+                                      if (rid != null) {
+                                        RepositoryProvider.of<ExpenseRepository>(context).restoreIncome(rid);
+                                        context.read<IncomeBloc>().add(LoadIncomes());
+                                        context.read<DashboardBloc>().add(LoadDashboard());
+                                      }
                                     }),
                                   ),
                                 );
@@ -423,5 +444,38 @@ class _IncomeListScreenState extends State<IncomeListScreen> {
         context.read<DashboardBloc>().add(LoadDashboard());
       }
     });
+  }
+
+  Future<void> _exportCSV(BuildContext context, List<IncomeModel> incomes) async {
+    try {
+      if (incomes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No incomes to export')),
+        );
+        return;
+      }
+      final rows = <List<String>>[
+        ['Date', 'Amount', 'Category', 'Source', 'Note'],
+        ...incomes.map((e) => [
+          DateFormat('yyyy-MM-dd').format(e.date),
+          e.amount.toStringAsFixed(2),
+          e.category?.name ?? 'Other',
+          e.source ?? '',
+          e.note ?? '',
+        ]),
+      ];
+      final csvData = const ListToCsvConverter().convert(rows);
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/incomes_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv');
+      await file.writeAsString(csvData);
+      await Share.shareXFiles([XFile(file.path)], text: 'Incomes Export');
+    } catch (e) {
+      debugPrint('[IncomeList] CSV export error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
   }
 }

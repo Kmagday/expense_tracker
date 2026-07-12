@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../data/repositories/expense_repository.dart';
 import '../../blocs/expense_bloc.dart';
 import '../../blocs/dashboard_bloc.dart';
 import '../../blocs/budget_bloc.dart';
@@ -29,6 +34,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
   double? _filterMinAmount;
   double? _filterMaxAmount;
   String? _filterTag;
+  int? _pendingRestoreId;
 
   @override
   void dispose() {
@@ -224,7 +230,16 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
             _filterTag != null;
 
         return Scaffold(
-          appBar: AppBar(title: const Text(PageTitles.allExpenses)),
+          appBar: AppBar(
+            title: const Text(PageTitles.allExpenses),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.file_download),
+                tooltip: 'Export CSV',
+                onPressed: () => _exportCSV(context, expenses),
+              ),
+            ],
+          ),
           body: Column(
             children: [
               Padding(
@@ -359,6 +374,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                                 ),
                               ),
                               onDismissed: (_) {
+                                _pendingRestoreId = e.id;
                                 context.read<ExpenseBloc>().add(DeleteExpenseEvent(e.id));
                                 context.read<DashboardBloc>().add(LoadDashboard());
                                 context.read<BudgetBloc>().add(LoadBudgets());
@@ -367,7 +383,14 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                                   SnackBar(
                                     content: const Text(AppMessages.expenseDeleted),
                                     action: SnackBarAction(label: 'Undo', onPressed: () {
-                                      context.read<ExpenseBloc>().add(LoadExpenses());
+                                      final rid = _pendingRestoreId;
+                                      if (rid != null) {
+                                        RepositoryProvider.of<ExpenseRepository>(context).restoreExpense(rid);
+                                        context.read<ExpenseBloc>().add(LoadExpenses());
+                                        context.read<DashboardBloc>().add(LoadDashboard());
+                                        context.read<BudgetBloc>().add(LoadBudgets());
+                                        context.read<AIBloc>().add(LoadAIInsights());
+                                      }
                                     }),
                                   ),
                                 );
@@ -388,8 +411,11 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                                     children: [
                                       Text(dateFormat.format(e.date)),
                                       if (e.receiptPath != null) ...[
-                                        const SizedBox(width: 6),
-                                        const Icon(Icons.receipt_long, size: 14, color: Colors.grey),
+                                      const SizedBox(width: 6),
+                                      GestureDetector(
+                                        onTap: () => _viewReceipt(context, e.receiptPath),
+                                        child: const Icon(Icons.receipt_long, size: 14, color: Colors.grey),
+                                      ),
                                       ],
                                     ],
                                   ),
@@ -443,5 +469,63 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
       context.read<BudgetBloc>().add(LoadBudgets());
       context.read<AIBloc>().add(LoadAIInsights());
     }
+  }
+
+  Future<void> _exportCSV(BuildContext context, List<dynamic> expenses) async {
+    try {
+      if (expenses.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No expenses to export')),
+        );
+        return;
+      }
+      final rows = <List<String>>[
+        ['Date', 'Amount', 'Category', 'Note', 'Payment Method'],
+        ...expenses.map((e) => [
+          DateFormat('yyyy-MM-dd').format(e.date),
+          e.amount.toStringAsFixed(2),
+          e.category?.name ?? 'Other',
+          e.note ?? '',
+          e.paymentMethod ?? '',
+        ]),
+      ];
+      final csvData = const ListToCsvConverter().convert(rows);
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/expenses_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv');
+      await file.writeAsString(csvData);
+      await Share.shareXFiles([XFile(file.path)], text: 'Expenses Export');
+    } catch (e) {
+      debugPrint('[ExpenseList] CSV export error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
+  void _viewReceipt(BuildContext context, String? path) {
+    if (path == null || path.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: const Text('Receipt'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              child: Image.file(File(path), fit: BoxFit.contain),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

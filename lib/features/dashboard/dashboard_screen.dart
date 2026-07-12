@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -182,6 +183,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     currencyFormat: currencyFormat,
                   ),
                 ],
+                const SizedBox(height: 12),
+                _SpendingInsights(
+                  allExpenses: state.allExpenses,
+                  currencyFormat: currencyFormat,
+                  monthTotal: monthTotal,
+                  incomeTotal: incomeTotal,
+                ),
                 const SizedBox(height: 16),
                 Text(UiLabels.wallets, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
@@ -469,6 +477,156 @@ class _TopCategoryCard extends StatelessWidget {
         title: const Text('Top Category'),
         subtitle: Text('$category: ${currencyFormat.format(amount)}'),
         trailing: const Icon(Icons.chevron_right, size: 20),
+      ),
+    );
+  }
+}
+
+class _SpendingInsights extends StatelessWidget {
+  final List<ExpenseModel> allExpenses;
+  final NumberFormat currencyFormat;
+  final double monthTotal;
+  final double incomeTotal;
+
+  const _SpendingInsights({
+    required this.allExpenses,
+    required this.currencyFormat,
+    required this.monthTotal,
+    required this.incomeTotal,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final thisMonth = allExpenses.where((e) =>
+        e.date.month == now.month && e.date.year == now.year).toList();
+
+    if (thisMonth.isEmpty) return const SizedBox.shrink();
+
+    final byCategory = <String, double>{};
+    final catColors = <String, Color>{};
+    for (final e in thisMonth) {
+      final name = e.category?.name ?? 'Other';
+      byCategory[name] = (byCategory[name] ?? 0) + e.amount;
+      catColors[name] = Color(e.category?.color ?? 0xFF757575);
+    }
+
+    final sorted = byCategory.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top3 = sorted.take(3).toList();
+    final total = byCategory.values.fold(0.0, (a, b) => a + b);
+    final avgDaily = total / DateTime(now.year, now.month + 1, 0).day;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.insights, color: Colors.teal, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text('Spending Insights', style: theme.textTheme.titleSmall),
+            ]),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _InsightChip(
+                  icon: Icons.calendar_view_day,
+                  label: 'Daily avg',
+                  value: currencyFormat.format(avgDaily),
+                  color: Colors.teal,
+                ),
+                const SizedBox(width: 8),
+                _InsightChip(
+                  icon: Icons.trending_up,
+                  label: 'Top category',
+                  value: '${sorted.first.key} ${currencyFormat.format(sorted.first.value)}',
+                  color: Colors.orange,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Top Categories', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+            const SizedBox(height: 8),
+            ...top3.map((e) {
+              final pct = total > 0 ? e.value / total : 0.0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10, height: 10,
+                      decoration: BoxDecoration(
+                        color: catColors[e.key]?.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(e.key, style: const TextStyle(fontSize: 12)),
+                    ),
+                    Text('${(pct * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                    const SizedBox(width: 8),
+                    Text(currencyFormat.format(e.value),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _InsightChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                  Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

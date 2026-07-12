@@ -10,7 +10,9 @@ final class LoadBudgets extends BudgetEvent {}
 final class ChangeBudgetMonth extends BudgetEvent {
   final int month;
   final int year;
-  ChangeBudgetMonth({required this.month, required this.year});
+  final bool rollover;
+
+  ChangeBudgetMonth({required this.month, required this.year, this.rollover = false});
 }
 
 final class SetBudgetEvent extends BudgetEvent {
@@ -30,6 +32,14 @@ final class SetBudgetEvent extends BudgetEvent {
 final class DeleteBudgetEvent extends BudgetEvent {
   final int id;
   DeleteBudgetEvent(this.id);
+}
+
+final class RolloverBudget extends BudgetEvent {
+  final int fromMonth;
+  final int fromYear;
+  final int toMonth;
+  final int toYear;
+  RolloverBudget({required this.fromMonth, required this.fromYear, required this.toMonth, required this.toYear});
 }
 
 class BudgetState {
@@ -72,6 +82,7 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
     on<ChangeBudgetMonth>(_onChangeMonth);
     on<SetBudgetEvent>(_onSetBudget);
     on<DeleteBudgetEvent>(_onDeleteBudget);
+    on<RolloverBudget>(_onRollover);
   }
 
   Future<void> _onLoad(LoadBudgets event, Emitter<BudgetState> emit) async {
@@ -100,6 +111,23 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
     debugPrint('[BudgetBloc] changing month to ${event.month}/${event.year}');
     emit(state.copyWith(isLoading: true));
     try {
+      if (event.rollover) {
+        final prevBudgets = await _repo.getBudgets(event.month, event.year);
+        final hasBudgets = prevBudgets.isNotEmpty;
+        if (!hasBudgets) {
+          final prevMonth = event.month == 1 ? 12 : event.month - 1;
+          final prevYear = event.month == 1 ? event.year - 1 : event.year;
+          final lastBudgets = await _repo.getBudgets(prevMonth, prevYear);
+          for (final b in lastBudgets) {
+            if (b.remaining > 0) {
+              await _repo.setBudget(
+                categoryId: b.categoryId, month: event.month, year: event.year,
+                amount: b.remaining,
+              );
+            }
+          }
+        }
+      }
       final budgets = await _repo.getBudgets(event.month, event.year);
       emit(state.copyWith(
         budgets: budgets,
@@ -110,6 +138,28 @@ class BudgetBloc extends Bloc<BudgetEvent, BudgetState> {
       ));
     } catch (e) {
       debugPrint('[BudgetBloc] _onChangeMonth error: $e');
+      emit(state.copyWith(isLoading: false));
+    }
+  }
+
+  Future<void> _onRollover(RolloverBudget event, Emitter<BudgetState> emit) async {
+    debugPrint('[BudgetBloc] rolling over from ${event.fromMonth}/${event.fromYear} to ${event.toMonth}/${event.toYear}');
+    try {
+      final prevBudgets = await _repo.getBudgets(event.fromMonth, event.fromYear);
+      for (final b in prevBudgets) {
+        if (b.remaining > 0) {
+          await _repo.setBudget(
+            categoryId: b.categoryId, month: event.toMonth, year: event.toYear,
+            amount: b.remaining,
+          );
+        }
+      }
+      emit(state.copyWith(
+        budgets: await _repo.getBudgets(event.toMonth, event.toYear),
+        isLoading: false,
+      ));
+    } catch (e) {
+      debugPrint('[BudgetBloc] _onRollover error: $e');
       emit(state.copyWith(isLoading: false));
     }
   }

@@ -42,15 +42,24 @@ class SettingsScreen extends StatelessWidget {
           BlocBuilder<ThemeCubit, ThemeMode>(
             builder: (context, themeMode) {
               return Card(
-                child: SwitchListTile(
-                  title: const Text('Dark Mode'),
-                  subtitle: Text(themeMode == ThemeMode.dark ? 'Enabled' : 'Disabled'),
-                  value: themeMode == ThemeMode.dark,
-                  onChanged: (v) {
-                    context.read<ThemeCubit>().setTheme(
-                      v ? ThemeMode.dark : ThemeMode.light,
-                    );
-                  },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Theme', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 12),
+                      SegmentedButton<ThemeMode>(
+                        segments: const [
+                          ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
+                          ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
+                          ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
+                        ],
+                        selected: {themeMode},
+                        onSelectionChanged: (v) => context.read<ThemeCubit>().setTheme(v.first),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

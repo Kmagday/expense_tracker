@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/models/expense_models.dart';
 import '../../data/repositories/expense_repository.dart';
 import '../../core/utils/icons_helper.dart';
@@ -36,6 +40,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
       appBar: AppBar(
         title: const Text('Accounts'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Export CSV',
+            onPressed: () => _exportCSV(context),
+          ),
           IconButton(
             icon: const Icon(Icons.compare_arrows),
             tooltip: 'Transfer',
@@ -73,9 +82,39 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     label: const Text(PageTitles.addAccount),
                   ),
                 ],
-              ),
-            );
-          }
+      ),
+    );
+  }
+
+  Future<void> _exportCSV(BuildContext context) async {
+    try {
+      final accounts = await _fetchAccounts();
+      if (accounts.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No accounts to export')),
+        );
+        return;
+      }
+      final rows = <List<String>>[
+        ['Name', 'Type', 'Balance', 'Icon', 'Color'],
+        ...accounts.map((a) => [
+          a.name,
+          a.type,
+          a.balance.toStringAsFixed(2),
+          a.icon,
+          a.color.toString(),
+        ]),
+      ];
+      final csvData = const ListToCsvConverter().convert(rows);
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/accounts_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv');
+      await file.writeAsString(csvData);
+      await Share.shareXFiles([XFile(file.path)], text: 'Accounts Export');
+    } catch (e) {
+      debugPrint('[Accounts] CSV export error: $e');
+    }
+  }
+}
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: accounts.length,
