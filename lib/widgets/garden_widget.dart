@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 class GardenData {
   final double growthLevel;
@@ -43,6 +45,7 @@ class _GardenWidgetState extends State<GardenWidget>
   final List<_Ripple> _ripples = [];
   final List<_Firefly> _fireflies = [];
   bool _showLevelUp = false;
+  ui.Image? _treeFace;
 
   @override
   void initState() {
@@ -84,6 +87,8 @@ class _GardenWidgetState extends State<GardenWidget>
     if (widget.data.showBirds) {
       _startBirdAnimation();
     }
+
+    _loadTreeFace();
   }
 
   void _initFireflies() {
@@ -98,6 +103,17 @@ class _GardenWidgetState extends State<GardenWidget>
         phase: rng.nextDouble() * math.pi * 2,
         hue: 50 + rng.nextDouble() * 30,
       ));
+    }
+  }
+
+  Future<void> _loadTreeFace() async {
+    try {
+      final data = await rootBundle.load('assets/images/Unknown.jpg');
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List(), targetWidth: 120, targetHeight: 120);
+      final frame = await codec.getNextFrame();
+      if (mounted) setState(() => _treeFace = frame.image);
+    } catch (e) {
+      debugPrint('[Garden] failed to load tree face: $e');
     }
   }
 
@@ -233,6 +249,7 @@ class _GardenWidgetState extends State<GardenWidget>
                 ripples: _ripples,
                 rippleProgress: rippleProgress,
                 waterCount: _waterCount,
+                treeFace: _treeFace,
               ),
             );
           },
@@ -503,6 +520,7 @@ class _GardenPainter extends CustomPainter {
   final List<_Ripple> ripples;
   final double rippleProgress;
   final int waterCount;
+  final ui.Image? treeFace;
 
   _GardenPainter({
     required this.growth,
@@ -518,6 +536,7 @@ class _GardenPainter extends CustomPainter {
     required this.ripples,
     required this.rippleProgress,
     required this.waterCount,
+    this.treeFace,
   });
 
   @override
@@ -676,6 +695,95 @@ class _GardenPainter extends CustomPainter {
       canopyRadius * 0.5,
       darkPaint,
     );
+
+    if (treeFace != null && growth > 0.15) {
+      final size = 0.5 + growth * 0.7;
+      final girlW = 28 * size;
+      final girlH = 50 * size;
+      final girlX = cx - canopyRadius * 0.8 - girlW * 0.5;
+      final girlY = groundY - girlH;
+      final bob = math.sin(swayPhase * math.pi * 2 * 0.7) * 2 * size;
+      final sway = math.sin(swayPhase * math.pi * 2 * 0.4) * 3 * size;
+
+      canvas.save();
+      canvas.translate(girlX + sway, girlY + bob);
+      canvas.scale(size, size);
+
+      // Body
+      final bodyPaint = Paint()..color = const Color(0xFFE8D5C4);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(-6, 0, 12, 28), const Radius.circular(4)),
+        bodyPaint,
+      );
+
+      // Dress
+      final dressPaint = Paint()..color = const Color(0xFF81C784);
+      final dressPath = Path()
+        ..moveTo(-8, 18)
+        ..lineTo(8, 18)
+        ..lineTo(10, 32)
+        ..lineTo(-10, 32)
+        ..close();
+      canvas.drawPath(dressPath, dressPaint);
+
+      // Head
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(0, -6), width: 14, height: 15),
+        bodyPaint,
+      );
+
+      // Hair
+      final hairPaint = Paint()..color = const Color(0xFF5D4037);
+      final hairPath = Path()
+        ..addOval(Rect.fromCenter(center: const Offset(0, -7), width: 16, height: 15));
+      canvas.drawPath(hairPath, hairPaint);
+
+      // Face (from image) — small circular portrait on the head
+      final faceR = 6.0;
+      canvas.save();
+      canvas.clipRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: const Offset(0, -6), width: faceR * 2, height: faceR * 2), Radius.circular(faceR)));
+      canvas.drawImageRect(
+        treeFace!,
+        Rect.fromLTWH(0, 0, treeFace!.width.toDouble(), treeFace!.height.toDouble()),
+        Rect.fromCenter(center: const Offset(0, -6), width: faceR * 2, height: faceR * 2),
+        Paint(),
+      );
+      canvas.restore();
+
+      // Eyes
+      final eyePaint = Paint()..color = const Color(0xFF3E2723);
+      canvas.drawCircle(const Offset(-3, -7), 0.8, eyePaint);
+      canvas.drawCircle(const Offset(3, -7), 0.8, eyePaint);
+
+      // Blush
+      final blushPaint = Paint()..color = Colors.pink.withValues(alpha: 0.3);
+      canvas.drawCircle(const Offset(-5, -4), 1.5, blushPaint);
+      canvas.drawCircle(const Offset(5, -4), 1.5, blushPaint);
+
+      // Arms
+      final armSway = math.sin(swayPhase * math.pi * 2 * 0.6) * 3;
+      final armPaint = Paint()
+        ..color = const Color(0xFFE8D5C4)
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(const Offset(-6, 8), Offset(-12 + armSway, 14), armPaint);
+      canvas.drawLine(const Offset(6, 8), Offset(12 - armSway, 14), armPaint);
+
+      // Legs
+      final legPaint = Paint()
+        ..color = const Color(0xFFD7CCC8)
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(const Offset(-4, 32), const Offset(-5, 42), legPaint);
+      canvas.drawLine(const Offset(4, 32), const Offset(5, 42), legPaint);
+
+      // Shoes
+      final shoePaint = Paint()..color = const Color(0xFF795548);
+      canvas.drawOval(Rect.fromCenter(center: const Offset(-5, 42), width: 5, height: 3), shoePaint);
+      canvas.drawOval(Rect.fromCenter(center: const Offset(5, 42), width: 5, height: 3), shoePaint);
+
+      canvas.restore();
+    }
   }
 
   void _drawBranches(Canvas canvas, double cx, double trunkTop, double trunkH, double growth, bool right) {
@@ -1050,5 +1158,6 @@ class _GardenPainter extends CustomPainter {
       old.swayPhase != swayPhase ||
       old.fireflyGlow != fireflyGlow ||
       old.rippleProgress != rippleProgress ||
-      old.waterCount != waterCount;
+      old.waterCount != waterCount ||
+      old.treeFace != treeFace;
 }
