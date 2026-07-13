@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -653,7 +652,7 @@ class _ConfettiPainter extends CustomPainter {
           color: Colors.amber.shade600,
         ),
       ),
-      textDirection: ui.TextDirection.ltr,
+      textDirection: TextDirection.ltr,
     )..layout();
     textPainter.paint(canvas, Offset((w - textPainter.width) / 2, h * 0.35 - math.sin(progress * math.pi * 2) * 10));
   }
