@@ -593,6 +593,7 @@ class _ConfettiOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dir = Directionality.of(context);
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
@@ -603,6 +604,7 @@ class _ConfettiOverlay extends StatelessWidget {
             painter: _ConfettiPainter(
               progress: progress,
               isDark: theme.brightness == Brightness.dark,
+              textDirection: dir,
             ),
           ),
         );
@@ -614,8 +616,9 @@ class _ConfettiOverlay extends StatelessWidget {
 class _ConfettiPainter extends CustomPainter {
   final double progress;
   final bool isDark;
+  final TextDirection textDirection;
 
-  _ConfettiPainter({required this.progress, required this.isDark});
+  _ConfettiPainter({required this.progress, required this.isDark, required this.textDirection});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -652,11 +655,11 @@ class _ConfettiPainter extends CustomPainter {
           color: Colors.amber.shade600,
         ),
       ),
-      textDirection: TextDirection.ltr,
+      textDirection: textDirection,
     )..layout();
     textPainter.paint(canvas, Offset((w - textPainter.width) / 2, h * 0.35 - math.sin(progress * math.pi * 2) * 10));
   }
 
   @override
-  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
+  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress || old.textDirection != textDirection;
 }
