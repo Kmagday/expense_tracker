@@ -593,7 +593,6 @@ class _ConfettiOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dir = Directionality.of(context);
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
@@ -604,7 +603,6 @@ class _ConfettiOverlay extends StatelessWidget {
             painter: _ConfettiPainter(
               progress: progress,
               isDark: theme.brightness == Brightness.dark,
-              textDirection: dir,
             ),
           ),
         );
@@ -616,9 +614,8 @@ class _ConfettiOverlay extends StatelessWidget {
 class _ConfettiPainter extends CustomPainter {
   final double progress;
   final bool isDark;
-  final TextDirection textDirection;
 
-  _ConfettiPainter({required this.progress, required this.isDark, required this.textDirection});
+  _ConfettiPainter({required this.progress, required this.isDark});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -634,32 +631,18 @@ class _ConfettiPainter extends CustomPainter {
       final yEnd = h + 20;
       final fall = yStart + (yEnd - yStart) * progress;
       final sway = math.sin(progress * math.pi * 2 + i * 0.7) * 20;
-      final size = 4 + rng.nextDouble() * 6;
+      final sz = 4 + rng.nextDouble() * 6;
       final rotation = progress * math.pi * 2 + i * 1.3;
       final color = colors[i % colors.length].withValues(alpha: (1 - progress) * 0.9);
 
       canvas.save();
       canvas.translate(x + sway, fall);
       canvas.rotate(rotation);
-      canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: size, height: size * 0.6), Paint()..color = color);
+      canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: sz, height: sz * 0.6), Paint()..color = color);
       canvas.restore();
     }
-
-    final text = '🎉 Goal Complete! 🎉';
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          fontSize: 24 + math.sin(progress * math.pi * 4) * 4,
-          fontWeight: FontWeight.bold,
-          color: Colors.amber.shade600,
-        ),
-      ),
-      textDirection: textDirection,
-    )..layout();
-    textPainter.paint(canvas, Offset((w - textPainter.width) / 2, h * 0.35 - math.sin(progress * math.pi * 2) * 10));
   }
 
   @override
-  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress || old.textDirection != textDirection;
+  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
 }
